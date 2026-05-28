@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import ProductGrid from '@/components/products/ProductGrid'
 import VideoHero from '@/components/home/VideoHero'
@@ -81,26 +80,49 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Banner secundario */}
-      <section className="relative h-64 overflow-hidden my-4">
-        <Image
-          src="/hero-secondary.jpg"
-          alt="Empire Nutrition — Suplementos"
-          fill
-          className="object-cover object-center opacity-50"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent" />
-        <div className="relative z-10 h-full flex flex-col justify-center px-8 sm:px-16 max-w-2xl">
-          <h2 className="text-white font-display font-bold text-3xl sm:text-4xl uppercase tracking-wide leading-tight">
-            Alcanza tu<br />
-            <span className="text-accent">Máximo Potencial</span>
-          </h2>
-          <Link
-            href="/tienda"
-            className="mt-4 inline-block btn-accent px-6 py-2 rounded-sm text-sm w-fit"
-          >
-            Comprar Ahora
-          </Link>
+      {/* Video showcase — WEB HD */}
+      <section className="bg-black py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto">
+          {/* Título */}
+          <div className="text-center mb-8">
+            <h2 className="text-white font-display font-bold text-3xl sm:text-4xl uppercase tracking-wide leading-tight">
+              Alcanza tu <span className="text-accent">Máximo Potencial</span>
+            </h2>
+            <p className="text-zinc-400 mt-2 text-sm sm:text-base">
+              Suplementos diseñados para llevarte al siguiente nivel
+            </p>
+          </div>
+
+          {/* Video contenedor — borde verde neón */}
+          <div className="relative rounded-xl overflow-hidden border border-accent/40 shadow-[0_0_40px_rgba(35,243,14,0.15)]">
+            <video
+              className="w-full aspect-video object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+            >
+              <source
+                src="https://video.wixstatic.com/video/5cd3e7_a1bdec1e652044e2bae0b70b3d022289/1080p/mp4/file.mp4"
+                type="video/mp4"
+                media="(min-width: 1024px)"
+              />
+              <source
+                src="https://video.wixstatic.com/video/5cd3e7_a1bdec1e652044e2bae0b70b3d022289/720p/mp4/file.mp4"
+                type="video/mp4"
+              />
+            </video>
+          </div>
+
+          {/* CTA */}
+          <div className="text-center mt-8">
+            <Link
+              href="/tienda"
+              className="btn-accent inline-block px-10 py-3 rounded-sm text-base"
+            >
+              Ver Tienda
+            </Link>
+          </div>
         </div>
       </section>
 
