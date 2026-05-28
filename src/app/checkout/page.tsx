@@ -84,8 +84,8 @@ export default function CheckoutPage() {
       },
         async (response) => {
         const token = response.data.id
-        // Sandbox: device_session_id = random UUID (no requiere openpay-data.js)
-        const deviceSessionId = crypto.randomUUID()
+        // Sandbox: device_session_id = 32 hex chars (OpenPay max=32, UUID sin guiones)
+        const deviceSessionId = crypto.randomUUID().replace(/-/g, '')
 
         // 2. Enviar al backend
         try {
