@@ -344,7 +344,7 @@ async function migrateBlog() {
         excerpt:      post.excerpt ?? null,
         content:      post.content ?? post.richContent ?? '',
         cover_image:  coverImageUrl,
-        is_published: post.status === 'PUBLISHED',
+        is_published: post.status?.toUpperCase() !== 'DRAFT',
         published_at: post.firstPublishedDate ?? post.publishedDate ?? null,
       }
 
