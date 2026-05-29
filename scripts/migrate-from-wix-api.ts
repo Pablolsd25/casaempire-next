@@ -202,7 +202,10 @@ async function migrateProducts() {
         : null
 
       // Stock
-      const stock = product.stock?.quantity ?? 0
+      // Si Wix no rastrea cantidad exacta (trackQuantity=false), usa inStock como señal
+      const stock = product.stock?.trackQuantity
+        ? (product.stock?.quantity ?? 0)
+        : (product.stock?.inStock !== false ? 99 : 0)
 
       // Categoría (primera colección que no sea "All Products")
       const categoryWixId = (product.collectionIds ?? []).find(
@@ -378,7 +381,9 @@ interface WixProduct {
     compareAtPrice?: string
   }
   stock?: {
-    quantity: number
+    trackQuantity?: boolean
+    inStock?:       boolean
+    quantity?:      number
   }
   media?: {
     items: Array<{
