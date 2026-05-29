@@ -12,6 +12,7 @@ const navLinks = [
   { href: '/categoria/mujeres', label: "Women's Nutrition" },
   { href: '/categoria/hombres', label: "Men's Nutrition" },
   { href: '/ofertas',           label: 'Nuestras Ofertas' },
+  { href: '/envios',            label: 'Envíos Seguros' },
   { href: '/blog',              label: 'Blog' },
   { href: '/contacto',          label: 'Contacto' },
 ]
