@@ -79,7 +79,60 @@ export default async function AdminProductos({
 
       {/* Tabla */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
+
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-zinc-800">
+          {(products ?? []).map((p) => {
+            const cat = (p.category as unknown) as { name: string } | null
+            return (
+              <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+                {/* Thumbnail */}
+                {p.images?.[0] ? (
+                  <div className="w-14 h-14 rounded overflow-hidden bg-zinc-800 flex-shrink-0 relative">
+                    <Image src={p.images[0]} alt={p.name} fill className="object-contain" />
+                  </div>
+                ) : (
+                  <div className="w-14 h-14 rounded bg-zinc-800 flex-shrink-0" />
+                )}
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium text-sm truncate">{p.name}</p>
+                  <p className="text-zinc-500 text-xs">{cat?.name ?? '—'} · ${Number(p.price).toLocaleString('es-MX')}</p>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <span className={`text-xs font-medium ${p.stock === 0 ? 'text-red-400' : p.stock <= 5 ? 'text-yellow-400' : 'text-zinc-400'}`}>
+                      Stock: {p.stock}
+                    </span>
+                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${p.is_active ? 'bg-green-500/20 text-green-400' : 'bg-zinc-700 text-zinc-400'}`}>
+                      {p.is_active ? 'Activo' : 'Oculto'}
+                    </span>
+                  </div>
+                </div>
+                {/* Actions */}
+                <div className="flex flex-col gap-1.5 flex-shrink-0">
+                  <Link
+                    href={`/admin/productos/${p.id}`}
+                    className="text-xs text-accent border border-accent/40 px-2.5 py-1 rounded text-center hover:bg-accent/10 transition-colors"
+                  >
+                    Editar
+                  </Link>
+                  <Link
+                    href={`/producto/${p.slug}`}
+                    target="_blank"
+                    className="text-xs text-zinc-500 border border-zinc-700 px-2.5 py-1 rounded text-center hover:text-white transition-colors"
+                  >
+                    Ver
+                  </Link>
+                </div>
+              </div>
+            )
+          })}
+          {(products ?? []).length === 0 && (
+            <p className="py-12 text-center text-zinc-600 text-sm">No se encontraron productos</p>
+          )}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-zinc-500 text-xs border-b border-zinc-800 bg-zinc-950">

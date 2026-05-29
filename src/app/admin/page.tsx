@@ -89,7 +89,35 @@ export default async function AdminDashboard() {
             <h2 className="text-white font-display font-semibold uppercase tracking-wide">Órdenes recientes</h2>
             <Link href="/admin/ordenes" className="text-accent text-xs hover:underline">Ver todas →</Link>
           </div>
-          <div className="overflow-x-auto">
+
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y divide-zinc-800 -mx-5">
+            {(recentOrders ?? []).map((order) => (
+              <Link
+                key={order.id}
+                href={`/admin/ordenes/${order.id}`}
+                className="flex items-center justify-between px-5 py-3 hover:bg-zinc-800/50 transition-colors"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-accent font-mono text-xs">#{order.id.slice(0, 8)}</p>
+                  <p className="text-zinc-300 text-sm truncate">{order.customer_email ?? '—'}</p>
+                  <p className="text-zinc-500 text-xs">{new Date(order.created_at).toLocaleDateString('es-MX')}</p>
+                </div>
+                <div className="ml-3 flex flex-col items-end gap-1">
+                  <span className="text-white font-medium text-sm">${Number(order.total).toLocaleString('es-MX')}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[order.status] ?? 'bg-zinc-700 text-zinc-300'}`}>
+                    {STATUS_LABELS[order.status] ?? order.status}
+                  </span>
+                </div>
+              </Link>
+            ))}
+            {(recentOrders ?? []).length === 0 && (
+              <p className="px-5 py-8 text-center text-zinc-600 text-sm">No hay órdenes aún</p>
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-zinc-500 text-xs border-b border-zinc-800">

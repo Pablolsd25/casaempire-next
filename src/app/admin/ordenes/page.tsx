@@ -82,7 +82,39 @@ export default async function AdminOrdenesPage({
 
       {/* Tabla */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
+
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-zinc-800">
+          {(orders ?? []).map((order) => (
+            <Link
+              key={order.id}
+              href={`/admin/ordenes/${order.id}`}
+              className="block px-4 py-3 hover:bg-zinc-800/40 transition-colors"
+            >
+              <div className="flex items-start justify-between mb-1">
+                <span className="font-mono text-accent text-xs">#{order.id.slice(0, 8)}</span>
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[order.status] ?? 'bg-zinc-700 text-zinc-300'}`}>
+                  {STATUS_LABELS[order.status] ?? order.status}
+                </span>
+              </div>
+              <p className="text-zinc-300 text-sm truncate">{order.customer_email ?? '—'}</p>
+              <div className="flex items-center justify-between mt-1.5">
+                <span className="text-white font-semibold">${Number(order.total).toLocaleString('es-MX')} MXN</span>
+                <span className="text-zinc-500 text-xs">
+                  {new Date(order.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+            </Link>
+          ))}
+          {(orders ?? []).length === 0 && (
+            <p className="py-12 text-center text-zinc-600 text-sm">
+              No hay órdenes {status ? `con estado "${STATUS_LABELS[status]}"` : ''}
+            </p>
+          )}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-zinc-500 text-xs border-b border-zinc-800 bg-zinc-950">
