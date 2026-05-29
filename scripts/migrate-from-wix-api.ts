@@ -169,9 +169,21 @@ async function migrateProducts() {
     try {
       const slug = slugify(product.name)
 
-      // Bajar y subir imágenes
+      // Bajar y subir imágenes; recopilar URLs de video
       const imageUrls: string[] = []
+      const videoUrls: string[] = []
       for (const media of product.media?.items ?? []) {
+        if (media.video?.files?.length) {
+          // Elegir la mejor calidad disponible (720p preferido, luego 1080p, luego lo que haya)
+          const files = media.video.files.filter((f) => f.url)
+          const qualityOrder: Record<string, number> = { '720p': 3, '1080p': 2, '480p': 1 }
+          const best = files.sort(
+            (a, b) => (qualityOrder[b.quality ?? ''] ?? 0) - (qualityOrder[a.quality ?? ''] ?? 0)
+          )[0]
+          if (best?.url) videoUrls.push(best.url)
+          continue
+        }
+
         const imageUrl = media.image?.url ?? media.image?.id
         if (!imageUrl) continue
 
@@ -215,6 +227,7 @@ async function migrateProducts() {
             compare_at_price: comparePrice,
             stock,
             images:           imageUrls,
+            videos:           videoUrls,
             category_id:      categoryId,
             is_active:        product.visible ?? true,
           })
@@ -228,6 +241,7 @@ async function migrateProducts() {
           compare_at_price: comparePrice,
           stock,
           images:           imageUrls,
+          videos:           videoUrls,
           category_id:      categoryId,
           is_active:        product.visible ?? true,
         })
@@ -369,6 +383,13 @@ interface WixProduct {
   media?: {
     items: Array<{
       image?: { url?: string; id?: string }
+      video?: {
+        files?: Array<{
+          url?: string
+          format?: string
+          quality?: string
+        }>
+      }
     }>
   }
 }

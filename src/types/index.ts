@@ -17,6 +17,7 @@ export interface Product {
   stock: number
   category_id: string | null
   images: string[]
+  videos: string[]
   tags: string[]
   is_active: boolean
   created_at: string

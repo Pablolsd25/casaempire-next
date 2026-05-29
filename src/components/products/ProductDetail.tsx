@@ -8,10 +8,21 @@ import type { Product } from '@/types'
 
 const WA_NUMBER = '525571527659'
 
+// Unified media item: image or video
+type MediaItem =
+  | { type: 'image'; url: string }
+  | { type: 'video'; url: string }
+
 export default function ProductDetail({ product }: { product: Product }) {
-  const [qty, setQty] = useState(1)
-  const [activeImg, setActiveImg] = useState(0)
-  const [added, setAdded] = useState(false)
+  // Build combined media list: images first, then videos
+  const mediaItems: MediaItem[] = [
+    ...product.images.map((url) => ({ type: 'image' as const, url })),
+    ...(product.videos ?? []).map((url) => ({ type: 'video' as const, url })),
+  ]
+
+  const [qty, setQty]               = useState(1)
+  const [activeMedia, setActiveMedia] = useState(0)
+  const [added, setAdded]           = useState(false)
   const addItem = useCartStore((s) => s.addItem)
 
   const hasDiscount = product.compare_at_price && product.compare_at_price > product.price
@@ -27,11 +38,11 @@ export default function ProductDetail({ product }: { product: Product }) {
     setTimeout(() => setAdded(false), 2200)
   }
 
-  function prevImg() {
-    setActiveImg((p) => (p === 0 ? product.images.length - 1 : p - 1))
+  function prevMedia() {
+    setActiveMedia((p) => (p === 0 ? mediaItems.length - 1 : p - 1))
   }
-  function nextImg() {
-    setActiveImg((p) => (p === product.images.length - 1 ? 0 : p + 1))
+  function nextMedia() {
+    setActiveMedia((p) => (p === mediaItems.length - 1 ? 0 : p + 1))
   }
 
   const waText = encodeURIComponent(`Hola, me interesa el producto: *${product.name}*`)
@@ -46,6 +57,8 @@ export default function ProductDetail({ product }: { product: Product }) {
     product.stock === 0 ? 'Sin stock' :
     product.stock <= 5  ? `¡Solo ${product.stock} disponibles!` :
                           'En stock'
+
+  const current = mediaItems[activeMedia]
 
   return (
     <div>
@@ -72,20 +85,33 @@ export default function ProductDetail({ product }: { product: Product }) {
       {/* ── Two-column grid ───────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
 
-        {/* ── LEFT: Image gallery ───────────────────────── */}
+        {/* ── LEFT: Media gallery ───────────────────────── */}
         <div className="space-y-3">
 
-          {/* Main image */}
+          {/* Main display */}
           <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800/70 group">
-            {product.images[activeImg] ? (
+
+            {current?.type === 'video' ? (
+              /* ── Video player ── */
+              <video
+                key={current.url}
+                src={current.url}
+                controls
+                controlsList="nodownload"
+                playsInline
+                className="w-full h-full object-contain"
+              />
+            ) : current?.type === 'image' ? (
+              /* ── Image ── */
               <Image
-                src={product.images[activeImg]}
+                src={current.url}
                 alt={product.name}
                 fill
                 className="object-contain transition-opacity duration-300"
                 priority
               />
             ) : (
+              /* ── Placeholder ── */
               <div className="w-full h-full flex items-center justify-center text-zinc-800">
                 <svg className="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1}
@@ -95,14 +121,14 @@ export default function ProductDetail({ product }: { product: Product }) {
             )}
 
             {/* Discount badge */}
-            {hasDiscount && (
+            {hasDiscount && current?.type !== 'video' && (
               <div className="absolute top-3 left-3 z-10 bg-red-500 text-white text-[11px] font-display font-bold uppercase tracking-wider px-2.5 py-1 rounded-sm">
                 -{discountPct}%
               </div>
             )}
 
             {/* Out of stock overlay */}
-            {product.stock === 0 && (
+            {product.stock === 0 && current?.type !== 'video' && (
               <div className="absolute inset-0 bg-black/65 flex items-center justify-center z-10">
                 <span className="border border-zinc-600 text-zinc-400 font-display uppercase text-sm px-5 py-2 rounded-lg">
                   Agotado
@@ -110,11 +136,11 @@ export default function ProductDetail({ product }: { product: Product }) {
               </div>
             )}
 
-            {/* Arrows — only visible on hover if multiple images */}
-            {product.images.length > 1 && (
+            {/* Prev / Next arrows — only if multiple media */}
+            {mediaItems.length > 1 && (
               <>
                 <button
-                  onClick={prevImg}
+                  onClick={prevMedia}
                   className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full
                     bg-black/60 text-white text-xl flex items-center justify-center
                     opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
@@ -122,35 +148,47 @@ export default function ProductDetail({ product }: { product: Product }) {
                   ‹
                 </button>
                 <button
-                  onClick={nextImg}
+                  onClick={nextMedia}
                   className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full
                     bg-black/60 text-white text-xl flex items-center justify-center
                     opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
                 >
                   ›
                 </button>
-                {/* Image counter */}
+                {/* Counter */}
                 <div className="absolute bottom-3 right-3 z-10 bg-black/60 text-zinc-400 text-[10px] font-display px-2 py-1 rounded-md">
-                  {activeImg + 1} / {product.images.length}
+                  {activeMedia + 1} / {mediaItems.length}
                 </div>
               </>
             )}
           </div>
 
           {/* Thumbnails */}
-          {product.images.length > 1 && (
+          {mediaItems.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {product.images.map((img, i) => (
+              {mediaItems.map((item, i) => (
                 <button
                   key={i}
-                  onClick={() => setActiveImg(i)}
+                  onClick={() => setActiveMedia(i)}
                   className={`relative flex-shrink-0 w-[72px] h-[72px] rounded-xl overflow-hidden border-2 transition-all duration-200
-                    ${activeImg === i
+                    ${activeMedia === i
                       ? 'border-accent shadow-[0_0_14px_rgba(35,243,14,0.35)] scale-105'
                       : 'border-zinc-800 hover:border-zinc-600 opacity-60 hover:opacity-100'
                     }`}
                 >
-                  <Image src={img} alt="" fill className="object-cover" />
+                  {item.type === 'video' ? (
+                    /* Video thumbnail — play icon */
+                    <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
+                      <svg
+                        className={`w-7 h-7 transition-colors ${activeMedia === i ? 'text-accent' : 'text-zinc-500'}`}
+                        viewBox="0 0 24 24" fill="currentColor"
+                      >
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  ) : (
+                    <Image src={item.url} alt="" fill className="object-cover" />
+                  )}
                 </button>
               ))}
             </div>
