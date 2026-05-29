@@ -4,7 +4,9 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Envíos Seguros' }
 
-const WIX = 'https://static.wixstatic.com/media'
+const WIX      = 'https://static.wixstatic.com/media'
+const WIX_VID  = 'https://video.wixstatic.com/video'
+const SHIP_VID = `${WIX_VID}/d60565_b6e85d7a0c144d25ab693bde2ea6ad15`
 
 const proofImages = [
   { src: `${WIX}/5cd3e7_66524d5e7d004d2397225ebb700d3474~mv2.jpeg`, alt: 'Pedido Empire Nutrition entregado' },
@@ -142,6 +144,33 @@ export default function EnviosPage() {
           <p className="text-zinc-300 text-sm font-display uppercase tracking-wide">
             El 100% de nuestros envíos llegan a su destino
           </p>
+        </div>
+      </section>
+
+      {/* ── Brand video ── */}
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
+        <div className="relative rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950
+          shadow-[0_0_40px_rgba(35,243,14,0.06)]">
+          {/* accent top line */}
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-accent to-transparent z-10" />
+
+          <video
+            src={`${SHIP_VID}/720p/mp4/file.mp4`}
+            poster={`https://static.wixstatic.com/media/d60565_b6e85d7a0c144d25ab693bde2ea6ad15f000.jpg/v1/fill/w_1280,h_720,al_c,q_80,enc_avif,quality_auto/poster.jpg`}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="w-full aspect-video object-cover"
+          />
+
+          {/* bottom caption */}
+          <div className="absolute bottom-0 left-0 right-0 px-6 py-4
+            bg-gradient-to-t from-black/80 via-black/30 to-transparent">
+            <p className="text-accent text-xs font-display uppercase tracking-[0.25em]">
+              Empire Nutrition · Envíos a toda la República
+            </p>
+          </div>
         </div>
       </section>
 
