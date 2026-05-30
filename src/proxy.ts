@@ -23,7 +23,7 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Rutas protegidas
+  // Rutas protegidas — requieren sesión activa
   const protectedRoutes = ['/cuenta']
   const isProtected = protectedRoutes.some((r) => request.nextUrl.pathname.startsWith(r))
 

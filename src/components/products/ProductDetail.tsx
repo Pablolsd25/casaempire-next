@@ -20,9 +20,9 @@ export default function ProductDetail({ product }: { product: Product }) {
     ...(product.videos ?? []).map((url) => ({ type: 'video' as const, url })),
   ]
 
-  const [qty, setQty]               = useState(1)
+  const [qty, setQty]                = useState(1)
   const [activeMedia, setActiveMedia] = useState(0)
-  const [added, setAdded]           = useState(false)
+  const [added, setAdded]            = useState(false)
   const addItem = useCartStore((s) => s.addItem)
 
   const hasDiscount = product.compare_at_price && product.compare_at_price > product.price
@@ -215,7 +215,7 @@ export default function ProductDetail({ product }: { product: Product }) {
 
           {/* Price row */}
           <div className="flex items-end gap-3 flex-wrap">
-            <span className="text-accent font-display font-bold text-4xl sm:text-5xl leading-none">
+            <span className="text-accent font-display font-bold text-4xl sm:text-5xl leading-none drop-shadow-[0_0_18px_rgba(35,243,14,0.45)]">
               ${product.price.toLocaleString('es-MX', { minimumFractionDigits: 0 })}
             </span>
             {hasDiscount && (
@@ -231,13 +231,12 @@ export default function ProductDetail({ product }: { product: Product }) {
             )}
           </div>
 
-          {/* Divider */}
-          <div className="h-px bg-zinc-800" />
+          {/* Gradient divider */}
+          <div className="h-px bg-gradient-to-r from-accent/40 via-zinc-700 to-transparent" />
 
           {/* Stock indicator */}
           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${product.stock === 0 ? 'bg-red-400' : product.stock <= 5 ? 'bg-yellow-400' : 'bg-emerald-400'}`}
-              style={{ boxShadow: 'currentColor 0 0 6px' }} />
+            <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${product.stock === 0 ? 'bg-red-400' : product.stock <= 5 ? 'bg-yellow-400' : 'bg-emerald-400'}`} />
             <span className={`text-sm font-medium ${stockColor}`}>{stockLabel}</span>
           </div>
 
@@ -245,7 +244,7 @@ export default function ProductDetail({ product }: { product: Product }) {
           {product.stock > 0 && (
             <div className="flex items-center gap-4">
               <span className="text-zinc-500 text-xs font-display uppercase tracking-widest">Cantidad</span>
-              <div className="flex items-center rounded-xl overflow-hidden border border-zinc-700">
+              <div className="flex items-center rounded-xl overflow-hidden border border-zinc-700 bg-zinc-900/50">
                 <button
                   onClick={() => setQty(Math.max(1, qty - 1))}
                   className="w-11 h-11 flex items-center justify-center text-zinc-400
@@ -305,7 +304,7 @@ export default function ProductDetail({ product }: { product: Product }) {
               rel="noopener noreferrer"
               className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl
                 border border-zinc-700 text-zinc-300 text-sm font-display uppercase tracking-widest
-                hover:border-[#25D366] hover:text-[#25D366] transition-all duration-200"
+                hover:border-[#25D366] hover:text-[#25D366] hover:bg-[#25D366]/5 transition-all duration-200"
             >
               <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
@@ -323,36 +322,52 @@ export default function ProductDetail({ product }: { product: Product }) {
               { icon: '📦', text: 'Entrega en 2-5 días' },
               { icon: '✅', text: 'Garantía de calidad' },
             ].map((b) => (
-              <div key={b.text} className="flex items-center gap-2 bg-zinc-900/70 border border-zinc-800 rounded-lg px-3 py-2.5">
+              <div key={b.text} className="flex items-center gap-2 bg-zinc-900/70 border border-zinc-800 hover:border-zinc-700 rounded-lg px-3 py-2.5 transition-colors">
                 <span className="text-sm flex-shrink-0">{b.icon}</span>
                 <span className="text-zinc-400 text-xs leading-tight">{b.text}</span>
               </div>
             ))}
           </div>
+        </div>
+      </div>
 
-          {/* Divider */}
-          <div className="h-px bg-zinc-800" />
+      {/* ── FULL-WIDTH DESCRIPTION SECTION ──────────────────── */}
+      {(product.description || product.tags.length > 0) && (
+        <div className="mt-16 mb-4">
 
-          {/* Description */}
+          {/* Gradient divider */}
+          <div className="h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent mb-12" />
+
+          {/* Section header */}
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-1 h-8 bg-gradient-to-b from-accent to-accent/20 rounded-full" />
+            <h2 className="text-white font-display font-bold text-2xl uppercase tracking-widest">
+              Descripción del Producto
+            </h2>
+          </div>
+
+          {/* Description card */}
           {product.description && (
-            <div>
-              <p className="text-[11px] font-display uppercase tracking-[0.2em] text-zinc-500 mb-4">
-                Descripción del producto
-              </p>
-              <div
-                className="product-description text-zinc-300 text-sm leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: product.description }}
-              />
+            <div className="relative rounded-2xl overflow-hidden">
+              {/* Subtle gradient background layer */}
+              <div className="absolute inset-0 bg-gradient-to-br from-accent/5 via-transparent to-purple-600/5 pointer-events-none rounded-2xl" />
+              <div className="relative bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-8 lg:p-12">
+                <div
+                  className="product-description text-zinc-300 text-base leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: product.description }}
+                />
+              </div>
             </div>
           )}
 
           {/* Tags */}
           {product.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex flex-wrap gap-2 mt-8">
               {product.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="bg-zinc-900 border border-zinc-800 text-zinc-500 text-[11px] px-3 py-1 rounded-full hover:text-zinc-300 hover:border-zinc-600 transition-colors cursor-default"
+                  className="bg-zinc-900 border border-zinc-800 text-zinc-500 text-[11px] px-3 py-1.5 rounded-full
+                    hover:text-accent hover:border-accent/40 transition-colors cursor-default"
                 >
                   #{tag}
                 </span>
@@ -360,7 +375,7 @@ export default function ProductDetail({ product }: { product: Product }) {
             </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   )
 }

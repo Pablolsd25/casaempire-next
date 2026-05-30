@@ -13,6 +13,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect('/login?redirect=/admin')
   }
 
+  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim()).filter(Boolean)
+  if (!adminEmails.includes(user.email ?? '')) {
+    redirect('/?error=no_access')
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 flex">
       <AdminSidebar userEmail={user.email ?? ''} />
