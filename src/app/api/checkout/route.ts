@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { sendOrderConfirmation } from '@/lib/email/templates'
+import { validateCoupon } from '@/lib/coupons'
+import { SHIPPING_COST } from '@/lib/constants'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuración OpenPay
@@ -62,7 +64,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const {
       token, deviceSessionId, idempotencyKey,
-      amount, items, customer, shippingAddress,
+      amount, items, customer, shippingAddress, couponCode,
     } = body
 
     if (!token || !amount || !items?.length) {
@@ -75,6 +77,28 @@ export async function POST(req: NextRequest) {
     const profileId = user?.id ?? null
 
     const supabase = createAdminClient()
+
+    // ── 0b. Cálculo de montos del lado del servidor (no confiar en el cliente) ──
+    const subtotal = items.reduce(
+      (acc: number, i: { price: number; quantity: number }) => acc + i.price * i.quantity,
+      0
+    )
+
+    // Re-validar cupón en el servidor y recalcular descuento/envío
+    let discount = 0
+    let freeShipping = false
+    let validCouponCode: string | null = null
+    if (couponCode) {
+      const result = await validateCoupon(supabase, couponCode, subtotal)
+      if (result.valid) {
+        discount = result.discount
+        freeShipping = result.freeShipping
+        validCouponCode = result.coupon?.code ?? null
+      }
+    }
+
+    const shippingCost = freeShipping ? 0 : SHIPPING_COST
+    const total = Math.max(0, subtotal - discount + shippingCost)
 
     // ── 1. Idempotencia: retornar orden existente si ya se procesó ─────────────
     if (idempotencyKey) {
@@ -98,7 +122,7 @@ export async function POST(req: NextRequest) {
     const chargeBody = {
       source_id:         token,
       method:            'card',
-      amount:            parseFloat(amount.toFixed(2)),
+      amount:            parseFloat(total.toFixed(2)),
       currency:          'MXN',
       description:       'Compra Empire Nutrition',
       device_session_id: deviceSessionId,
@@ -144,13 +168,6 @@ export async function POST(req: NextRequest) {
       charge.status === 'completed' ? 'paid' : 'pending'
 
     // ── 3. Guardar orden en Supabase ───────────────────────────────────────────
-    const subtotal     = items.reduce(
-      (acc: number, i: { price: number; quantity: number }) => acc + i.price * i.quantity,
-      0
-    )
-    const shippingCost = 99
-    const total        = subtotal + shippingCost
-
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -158,6 +175,8 @@ export async function POST(req: NextRequest) {
         status:                 orderStatus,
         subtotal,
         shipping_cost:          shippingCost,
+        discount,
+        coupon_code:            validCouponCode,
         total,
         openpay_transaction_id: charge.id,
         shipping_address:       shippingAddress,
@@ -206,6 +225,11 @@ export async function POST(req: NextRequest) {
       })
     )
     await supabase.from('order_items').insert(orderItems)
+
+    // ── 4b. Incrementar uso del cupón (atómico vía RPC) ────────────────────────
+    if (validCouponCode) {
+      await supabase.rpc('increment_coupon_usage', { p_code: validCouponCode })
+    }
 
     // ── 5. Decrementar stock de cada producto (atómico vía RPC) ───────────────
     // La función decrement_stock usa GREATEST(0, stock - qty) para evitar

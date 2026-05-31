@@ -169,6 +169,15 @@ export default async function OrdenDetallePage({
             <span>Subtotal</span>
             <span>${Number(order.subtotal).toLocaleString('es-MX')}</span>
           </div>
+          {Number(order.discount) > 0 && (
+            <div className="flex justify-between text-sm text-green-400">
+              <span>
+                Descuento
+                {order.coupon_code && <span className="font-mono text-xs ml-1.5 bg-green-500/15 px-1.5 py-0.5 rounded">{order.coupon_code}</span>}
+              </span>
+              <span>−${Number(order.discount).toLocaleString('es-MX')}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm text-zinc-400">
             <span>Envío</span>
             <span>${Number(order.shipping_cost).toLocaleString('es-MX')}</span>

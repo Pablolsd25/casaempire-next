@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# wix media import manifest (estado local de dedup)
+scripts/.wix-media-manifest.json

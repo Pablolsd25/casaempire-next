@@ -1,24 +1,47 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
+import DeleteOrderButton from './DeleteOrderButton'
+import OrderItemsExpander from './OrderItemsExpander'
 
-export const metadata = { title: 'Órdenes | Admin' }
+export const metadata = { title: 'Pedidos | Admin' }
 
-const STATUS_COLORS: Record<string, string> = {
-  pending:   'bg-yellow-500/20 text-yellow-400',
-  paid:      'bg-green-500/20 text-green-400',
-  shipped:   'bg-blue-500/20 text-blue-400',
-  delivered: 'bg-accent/20 text-accent',
-  cancelled: 'bg-red-500/20 text-red-400',
+// ─── Status helpers ───────────────────────────────────────────────────────────
+
+function paymentBadge(status: string) {
+  switch (status) {
+    case 'paid':
+    case 'shipped':
+    case 'delivered':
+      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-500/20 text-green-400">Pagado</span>
+    case 'cancelled':
+      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-500/20 text-red-400">Cancelado</span>
+    default:
+      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-500/20 text-yellow-400">Pendiente</span>
+  }
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  pending:   'Pendiente',
-  paid:      'Pagado',
-  shipped:   'Enviado',
-  delivered: 'Entregado',
-  cancelled: 'Cancelado',
+function fulfillmentBadge(status: string) {
+  switch (status) {
+    case 'delivered':
+      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-accent/20 text-accent">Entregado</span>
+    case 'shipped':
+      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-400">Enviado</span>
+    case 'cancelled':
+      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-500/20 text-red-400">Cancelado</span>
+    default:
+      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-400/80 border border-red-500/20">No procesado</span>
+  }
 }
+
+const FILTER_OPTS = [
+  { value: '',          label: 'Todos' },
+  { value: 'pending',   label: 'Pendientes' },
+  { value: 'paid',      label: 'Pagados' },
+  { value: 'shipped',   label: 'Enviados' },
+  { value: 'delivered', label: 'Entregados' },
+  { value: 'cancelled', label: 'Cancelados' },
+]
 
 export default async function AdminOrdenesPage({
   searchParams,
@@ -27,45 +50,64 @@ export default async function AdminOrdenesPage({
 }) {
   const { status, page: pageParam } = await searchParams
   const page = Math.max(1, parseInt(pageParam ?? '1'))
-  const PAGE_SIZE = 20
+  const PAGE_SIZE = 25
   const from = (page - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
+  const to   = from + PAGE_SIZE - 1
 
-  // Auth check
   const auth = await createClient()
   await auth.auth.getUser()
 
-  // Datos con service role — ve TODAS las órdenes
   const supabase = createAdminClient()
 
   let query = supabase
     .from('orders')
-    .select('id, status, total, subtotal, shipping_cost, customer_email, created_at, openpay_transaction_id', { count: 'exact' })
+    .select(
+      'id, status, total, customer_email, customer_name, wix_order_number, created_at, order_items(quantity, unit_price, name, product_image)',
+      { count: 'exact' }
+    )
     .order('created_at', { ascending: false })
     .range(from, to)
 
   if (status) query = query.eq('status', status)
 
-  const { data: orders, count } = await query
+  let { data: orders, count, error: queryError } = await query
+
+  // Fallback if name/product_image columns haven't been added yet
+  if (queryError && queryError.message.includes('column')) {
+    const fallback = supabase
+      .from('orders')
+      .select(
+        'id, status, total, customer_email, customer_name, wix_order_number, created_at, order_items(quantity, unit_price)',
+        { count: 'exact' }
+      )
+      .order('created_at', { ascending: false })
+      .range(from, to)
+    if (status) (fallback as typeof fallback).eq('status', status)
+    const res = await (status ? fallback.eq('status', status) : fallback)
+    orders = res.data as typeof orders
+    count = res.count
+    queryError = res.error
+  }
+
+  if (queryError) console.error('[admin/ordenes] query error:', queryError.message)
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE)
 
+  // ── Recent threshold for "NUEVO" badge (48 h) ───────────────────────────────
+  const recentCutoff = Date.now() - 48 * 60 * 60 * 1000
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-white font-display font-bold text-3xl uppercase tracking-wide">Órdenes</h1>
-        <p className="text-zinc-500 text-sm mt-1">{count ?? 0} órdenes en total</p>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-white font-display font-bold text-3xl uppercase tracking-wide">Pedidos</h1>
+          <p className="text-zinc-500 text-sm mt-0.5">{count ?? 0} pedidos en total</p>
+        </div>
       </div>
 
-      {/* Filtro por estado */}
+      {/* Filtros */}
       <div className="flex flex-wrap gap-2">
-        {[
-          { value: '',          label: 'Todas' },
-          { value: 'pending',   label: 'Pendientes' },
-          { value: 'paid',      label: 'Pagadas' },
-          { value: 'shipped',   label: 'Enviadas' },
-          { value: 'delivered', label: 'Entregadas' },
-          { value: 'cancelled', label: 'Canceladas' },
-        ].map((opt) => (
+        {FILTER_OPTS.map((opt) => (
           <Link
             key={opt.value}
             href={`/admin/ordenes${opt.value ? `?status=${opt.value}` : ''}`}
@@ -85,31 +127,46 @@ export default async function AdminOrdenesPage({
 
         {/* Mobile cards */}
         <div className="md:hidden divide-y divide-zinc-800">
-          {(orders ?? []).map((order) => (
-            <Link
-              key={order.id}
-              href={`/admin/ordenes/${order.id}`}
-              className="block px-4 py-3 hover:bg-zinc-800/40 transition-colors"
-            >
-              <div className="flex items-start justify-between mb-1">
-                <span className="font-mono text-accent text-xs">#{order.id.slice(0, 8)}</span>
-                <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[order.status] ?? 'bg-zinc-700 text-zinc-300'}`}>
-                  {STATUS_LABELS[order.status] ?? order.status}
-                </span>
+          {(orders ?? []).map((order) => {
+            const isNew = new Date(order.created_at).getTime() > recentCutoff
+            const displayNum = order.wix_order_number ? `#${order.wix_order_number}` : `#${order.id.slice(0, 8)}`
+            const displayName = order.customer_name ?? order.customer_email ?? '—'
+            const items = (order.order_items as Array<{ quantity: number; unit_price: number; name?: string | null; product_image?: string | null }>) ?? []
+
+            return (
+              <div key={order.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Link href={`/admin/ordenes/${order.id}`} className="font-mono text-accent text-sm font-semibold hover:underline">
+                      {displayNum}
+                    </Link>
+                    {isNew && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-accent/20 text-accent border border-accent/30 uppercase">
+                        Nuevo
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-zinc-300 text-sm truncate">{displayName}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    {paymentBadge(order.status)}
+                    {fulfillmentBadge(order.status)}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-white font-semibold text-sm">${Number(order.total).toLocaleString('es-MX')} MXN</p>
+                  <p className="text-zinc-500 text-xs mt-0.5">
+                    {new Date(order.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </p>
+                  <div className="flex justify-end mt-0.5">
+                    <OrderItemsExpander items={items} />
+                  </div>
+                </div>
+                <DeleteOrderButton orderId={order.id} />
               </div>
-              <p className="text-zinc-300 text-sm truncate">{order.customer_email ?? '—'}</p>
-              <div className="flex items-center justify-between mt-1.5">
-                <span className="text-white font-semibold">${Number(order.total).toLocaleString('es-MX')} MXN</span>
-                <span className="text-zinc-500 text-xs">
-                  {new Date(order.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </span>
-              </div>
-            </Link>
-          ))}
+            )
+          })}
           {(orders ?? []).length === 0 && (
-            <p className="py-12 text-center text-zinc-600 text-sm">
-              No hay órdenes {status ? `con estado "${STATUS_LABELS[status]}"` : ''}
-            </p>
+            <p className="py-12 text-center text-zinc-600 text-sm">No hay pedidos</p>
           )}
         </div>
 
@@ -118,52 +175,97 @@ export default async function AdminOrdenesPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="text-zinc-500 text-xs border-b border-zinc-800 bg-zinc-950">
-                <th className="text-left px-4 py-3">ID</th>
-                <th className="text-left px-4 py-3">Cliente</th>
-                <th className="text-right px-4 py-3">Total</th>
-                <th className="text-center px-4 py-3">Estado</th>
-                <th className="text-left px-4 py-3">Fecha</th>
-                <th className="text-right px-4 py-3">Acción</th>
+                <th className="text-left px-4 py-3 font-medium">Pedido</th>
+                <th className="text-left px-4 py-3 font-medium">Fecha de creación</th>
+                <th className="text-left px-4 py-3 font-medium">Cliente</th>
+                <th className="text-center px-4 py-3 font-medium">Pago</th>
+                <th className="text-center px-4 py-3 font-medium">Cumplimiento</th>
+                <th className="text-right px-4 py-3 font-medium">Total</th>
+                <th className="text-center px-4 py-3 font-medium">Ítems</th>
+                <th className="text-right px-4 py-3 font-medium">Acción</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800">
-              {(orders ?? []).map((order) => (
-                <tr key={order.id} className="hover:bg-zinc-800/40 transition-colors">
-                  <td className="px-4 py-3">
-                    <Link href={`/admin/ordenes/${order.id}`} className="text-accent hover:underline font-mono text-xs">
-                      #{order.id.slice(0, 8)}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-300 truncate max-w-[180px]">
-                    {order.customer_email ?? '—'}
-                  </td>
-                  <td className="px-4 py-3 text-right text-white font-medium">
-                    ${Number(order.total).toLocaleString('es-MX')}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[order.status] ?? 'bg-zinc-700 text-zinc-300'}`}>
-                      {STATUS_LABELS[order.status] ?? order.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs">
-                    {new Date(order.created_at).toLocaleDateString('es-MX', {
-                      day: '2-digit', month: 'short', year: 'numeric',
-                    })}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/admin/ordenes/${order.id}`}
-                      className="text-xs text-accent hover:underline"
-                    >
-                      Ver detalle →
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {(orders ?? []).map((order) => {
+                const isNew = new Date(order.created_at).getTime() > recentCutoff
+                const displayNum = order.wix_order_number ? `#${order.wix_order_number}` : `#${order.id.slice(0, 8)}`
+                const displayName = order.customer_name ?? order.customer_email ?? '—'
+                const items = (order.order_items as Array<{ quantity: number; unit_price: number; name?: string | null; product_image?: string | null }>) ?? []
+
+                return (
+                  <tr key={order.id} className="hover:bg-zinc-800/40 transition-colors group">
+                    {/* Pedido */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/admin/ordenes/${order.id}`}
+                          className="font-mono text-accent font-semibold hover:underline"
+                        >
+                          {displayNum}
+                        </Link>
+                        {isNew && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-accent/20 text-accent border border-accent/30 uppercase">
+                            Nuevo
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Fecha */}
+                    <td className="px-4 py-3 text-zinc-400 text-xs whitespace-nowrap">
+                      {new Date(order.created_at).toLocaleString('es-MX', {
+                        day:    '2-digit',
+                        month:  'short',
+                        year:   'numeric',
+                        hour:   '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </td>
+
+                    {/* Cliente */}
+                    <td className="px-4 py-3 text-zinc-300 max-w-[180px]">
+                      <span className="truncate block">{displayName}</span>
+                    </td>
+
+                    {/* Pago */}
+                    <td className="px-4 py-3 text-center">
+                      {paymentBadge(order.status)}
+                    </td>
+
+                    {/* Cumplimiento */}
+                    <td className="px-4 py-3 text-center">
+                      {fulfillmentBadge(order.status)}
+                    </td>
+
+                    {/* Total */}
+                    <td className="px-4 py-3 text-right text-white font-medium whitespace-nowrap">
+                      ${Number(order.total).toLocaleString('es-MX')} MXN
+                    </td>
+
+                    {/* Ítems */}
+                    <td className="px-4 py-3 text-center">
+                      <OrderItemsExpander items={items} />
+                    </td>
+
+                    {/* Acciones */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <Link
+                          href={`/admin/ordenes/${order.id}`}
+                          className="text-xs text-accent hover:underline whitespace-nowrap"
+                        >
+                          Ver →
+                        </Link>
+                        <DeleteOrderButton orderId={order.id} />
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
               {(orders ?? []).length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-zinc-600">
-                    No hay órdenes {status ? `con estado "${STATUS_LABELS[status]}"` : ''}
+                  <td colSpan={8} className="py-12 text-center text-zinc-600">
+                    No hay pedidos{status ? ` con ese estado` : ''}
                   </td>
                 </tr>
               )}
@@ -171,19 +273,26 @@ export default async function AdminOrdenesPage({
           </table>
         </div>
 
+        {/* Paginación */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-800">
-            <p className="text-zinc-500 text-xs">Página {page} de {totalPages}</p>
+            <p className="text-zinc-500 text-xs">
+              Página {page} de {totalPages} · {count} pedidos
+            </p>
             <div className="flex gap-2">
               {page > 1 && (
-                <Link href={`/admin/ordenes?page=${page - 1}${status ? `&status=${status}` : ''}`}
-                  className="px-3 py-1 text-xs border border-zinc-700 text-zinc-400 hover:text-white rounded transition-colors">
+                <Link
+                  href={`/admin/ordenes?page=${page - 1}${status ? `&status=${status}` : ''}`}
+                  className="px-3 py-1 text-xs border border-zinc-700 text-zinc-400 hover:text-white rounded transition-colors"
+                >
                   ← Anterior
                 </Link>
               )}
               {page < totalPages && (
-                <Link href={`/admin/ordenes?page=${page + 1}${status ? `&status=${status}` : ''}`}
-                  className="px-3 py-1 text-xs border border-zinc-700 text-zinc-400 hover:text-white rounded transition-colors">
+                <Link
+                  href={`/admin/ordenes?page=${page + 1}${status ? `&status=${status}` : ''}`}
+                  className="px-3 py-1 text-xs border border-zinc-700 text-zinc-400 hover:text-white rounded transition-colors"
+                >
                   Siguiente →
                 </Link>
               )}

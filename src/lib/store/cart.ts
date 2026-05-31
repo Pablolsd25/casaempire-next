@@ -2,11 +2,13 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { CartItem, Product } from '@/types'
+import type { CartItem, Product, AppliedCoupon } from '@/types'
+import { SHIPPING_COST } from '@/lib/constants'
 
 interface CartStore {
   items: CartItem[]
   isOpen: boolean
+  coupon: AppliedCoupon | null
   addItem: (product: Product, quantity?: number) => void
   removeItem: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
@@ -14,6 +16,10 @@ interface CartStore {
   openCart: () => void
   closeCart: () => void
   toggleCart: () => void
+  applyCoupon: (coupon: AppliedCoupon) => void
+  removeCoupon: () => void
+  discount: () => number
+  shipping: () => number
   total: () => number
   subtotal: () => number
   itemCount: () => number
@@ -24,6 +30,7 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
       isOpen: false,
+      coupon: null,
 
       addItem: (product, quantity = 1) => {
         const items = get().items
@@ -59,10 +66,13 @@ export const useCartStore = create<CartStore>()(
         })
       },
 
-      clearCart: () => set({ items: [] }),
+      clearCart: () => set({ items: [], coupon: null }),
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
       toggleCart: () => set({ isOpen: !get().isOpen }),
+
+      applyCoupon: (coupon) => set({ coupon }),
+      removeCoupon: () => set({ coupon: null }),
 
       subtotal: () =>
         get().items.reduce(
@@ -70,7 +80,25 @@ export const useCartStore = create<CartStore>()(
           0
         ),
 
-      total: () => get().subtotal() + 99,
+      // Descuento recalculado sobre el subtotal actual (se re-valida en el checkout).
+      discount: () => {
+        const c = get().coupon
+        if (!c) return 0
+        const sub = get().subtotal()
+        if (c.type === 'percentage') return Math.round(sub * (c.value / 100) * 100) / 100
+        if (c.type === 'fixed')      return Math.min(c.value, sub)
+        return 0 // free_shipping no descuenta del subtotal
+      },
+
+      shipping: () => {
+        if (get().items.length === 0) return 0
+        return get().coupon?.freeShipping ? 0 : SHIPPING_COST
+      },
+
+      total: () => {
+        const t = get().subtotal() - get().discount() + get().shipping()
+        return t < 0 ? 0 : t
+      },
 
       itemCount: () =>
         get().items.reduce((acc, i) => acc + i.quantity, 0),

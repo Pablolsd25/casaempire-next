@@ -69,6 +69,23 @@ function IconStore() {
     </svg>
   )
 }
+function IconTicket() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9a2 2 0 012-2h14a2 2 0 012 2 2 2 0 000 4 2 2 0 01-2 2H5a2 2 0 01-2-2 2 2 0 000-4z" />
+      <line x1="9" y1="7" x2="9" y2="17" strokeDasharray="2 2" />
+    </svg>
+  )
+}
+function IconMedia() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <polyline points="21 15 16 10 5 21" />
+    </svg>
+  )
+}
 
 /* ── Nav sections ──────────────────────────────────────────── */
 const NAV_SECTIONS = [
@@ -79,6 +96,13 @@ const NAV_SECTIONS = [
       { href: '/admin/productos',  label: 'Productos',  Icon: IconBox  },
       { href: '/admin/ordenes',    label: 'Órdenes',    Icon: IconCart },
       { href: '/admin/categorias', label: 'Categorías', Icon: IconTag  },
+    ],
+  },
+  {
+    label: 'Marketing',
+    items: [
+      { href: '/admin/cupones', label: 'Cupones', Icon: IconTicket },
+      { href: '/admin/media',   label: 'Galería', Icon: IconMedia  },
     ],
   },
   {

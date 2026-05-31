@@ -20,11 +20,7 @@ export default async function EditarProductoPage({
   if (!product) notFound()
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-white font-display font-bold text-3xl uppercase tracking-wide">Editar Producto</h1>
-        <p className="text-zinc-500 text-sm mt-1 truncate">{product.name}</p>
-      </div>
+    <div>
       <ProductForm product={product} categories={categories ?? []} />
     </div>
   )

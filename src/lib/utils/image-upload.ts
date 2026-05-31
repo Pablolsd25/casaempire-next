@@ -63,3 +63,47 @@ export function validateImageFile(file: File, maxSizeMB = 5): void {
     throw new Error(`La imagen no puede superar ${maxSizeMB} MB.`)
   }
 }
+
+const VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/ogg']
+
+/**
+ * Valida un archivo de media (imagen o video) para la galería.
+ */
+export function validateMediaFile(file: File): void {
+  const isImage = file.type.startsWith('image/')
+  const isVideo = VIDEO_TYPES.includes(file.type)
+  if (!isImage && !isVideo) {
+    throw new Error('Formato no válido. Sube una imagen o un video (MP4, WebM, MOV).')
+  }
+  const maxMB = isVideo ? 50 : 5
+  if (file.size > maxMB * 1024 * 1024) {
+    throw new Error(`El archivo no puede superar ${maxMB} MB.`)
+  }
+}
+
+/**
+ * Sube un archivo de media (imagen o video) a la galería.
+ * Imágenes → carpeta `products`, videos → carpeta `videos`.
+ * @returns URL pública
+ */
+export async function uploadMediaFile(file: File): Promise<string> {
+  validateMediaFile(file)
+
+  const supabase = createClient()
+  const isVideo = file.type.startsWith('video/')
+  const folder = isVideo ? 'videos' : 'products'
+  const ext = file.name.split('.').pop() ?? (isVideo ? 'mp4' : 'jpg')
+  const base = file.name.replace(/\.[^.]+$/, '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'media'
+  const filePath = `${folder}/${base}_${Date.now()}.${ext}`
+
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(filePath, file, { cacheControl: '3600', upsert: false })
+
+  if (error) throw new Error(`Error subiendo archivo: ${error.message}`)
+
+  const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(filePath)
+  return publicUrl
+}

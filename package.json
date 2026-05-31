@@ -8,12 +8,16 @@
     "start": "next start",
     "lint": "eslint",
     "migrate:api": "tsx scripts/migrate-from-wix-api.ts",
+    "import:media": "tsx scripts/import-wix-media.ts",
     "migrate:csv": "tsx scripts/migrate-from-csv.ts",
     "migrate:images": "tsx scripts/reupload-images.ts",
     "migrate:images:dry": "tsx scripts/reupload-images.ts -- --dry-run",
     "sync:stock": "tsx scripts/sync-stock.ts",
     "migrate:orders": "tsx scripts/migrate-orders.ts",
-    "fix:offers": "tsx scripts/fix-offers.ts"
+    "fix:offers": "tsx scripts/fix-offers.ts",
+    "backfill:orders": "tsx scripts/backfill-order-fields.ts",
+    "backfill:items": "tsx scripts/backfill-order-items.ts",
+    "sync:fulfillment": "tsx scripts/sync-fulfillment.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

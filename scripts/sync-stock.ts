@@ -16,8 +16,19 @@
  *   SUPABASE_SERVICE_ROLE_KEY
  */
 
-import 'dotenv/config'
 import { createClient } from '@supabase/supabase-js'
+import * as fs from 'fs'
+import * as path from 'path'
+
+// Cargar .env.local manualmente (sin dotenv)
+const envPath = path.resolve(process.cwd(), '.env.local')
+if (fs.existsSync(envPath)) {
+  const lines = fs.readFileSync(envPath, 'utf-8').split('\n')
+  for (const line of lines) {
+    const [key, ...vals] = line.split('=')
+    if (key && vals.length) process.env[key.trim()] = vals.join('=').trim()
+  }
+}
 
 const WIX_API  = 'https://www.wixapis.com/stores/v2'
 const HEADERS  = {
@@ -109,7 +120,7 @@ async function main() {
   console.log('🔄  Fetching Supabase products...')
   const { data: sbProducts, error } = await supabase
     .from('products')
-    .select('id, name, sku')
+    .select('id, name')
 
   if (error) throw new Error(`Supabase fetch failed: ${error.message}`)
 

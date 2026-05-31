@@ -2,12 +2,62 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
+import { useState } from 'react'
 import { useCartStore } from '@/lib/store/cart'
+import type { AppliedCoupon } from '@/types'
 
 export default function CarritoPage() {
-  const { items, removeItem, updateQuantity, subtotal, total, clearCart } = useCartStore()
-  const sub = subtotal()
-  const tot = total()
+  const {
+    items, removeItem, updateQuantity, subtotal, total, clearCart,
+    coupon, applyCoupon, removeCoupon, discount, shipping,
+  } = useCartStore()
+  const sub  = subtotal()
+  const tot  = total()
+  const desc = discount()
+  const ship = shipping()
+
+  const [code, setCode]       = useState('')
+  const [applying, setApplying] = useState(false)
+  const [couponMsg, setCouponMsg] = useState('')
+
+  const handleApply = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!code.trim()) return
+    setApplying(true)
+    setCouponMsg('')
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.trim(), subtotal: sub }),
+      })
+      const data = await res.json()
+      if (data.valid && data.coupon) {
+        const applied: AppliedCoupon = {
+          code:         data.coupon.code,
+          type:         data.coupon.type,
+          value:        data.coupon.value,
+          discount:     data.discount,
+          freeShipping: data.freeShipping,
+        }
+        applyCoupon(applied)
+        setCode('')
+        setCouponMsg('')
+      } else {
+        setCouponMsg(data.message ?? 'Cupón inválido.')
+      }
+    } catch {
+      setCouponMsg('Error al validar el cupón.')
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  const handleRemoveCoupon = () => {
+    removeCoupon()
+    setCouponMsg('')
+  }
+
 
   if (items.length === 0) {
     return (
@@ -84,15 +134,66 @@ export default function CarritoPage() {
                 <span>Subtotal</span>
                 <span>${sub.toFixed(2)} MXN</span>
               </div>
+
+              {coupon && (
+                <div className="flex justify-between text-green-400">
+                  <span className="flex items-center gap-1.5">
+                    Descuento
+                    <span className="font-mono text-xs bg-green-500/15 px-1.5 py-0.5 rounded">{coupon.code}</span>
+                  </span>
+                  <span>−${desc.toFixed(2)}</span>
+                </div>
+              )}
+
               <div className="flex justify-between text-zinc-400">
                 <span>Envío</span>
-                <span>$99.00 MXN</span>
+                {coupon?.freeShipping ? (
+                  <span className="text-green-400">Gratis</span>
+                ) : (
+                  <span>${ship.toFixed(2)} MXN</span>
+                )}
               </div>
               <div className="border-t border-zinc-800 pt-3 flex justify-between text-white font-semibold text-base">
                 <span>Total</span>
                 <span>${tot.toFixed(2)} MXN</span>
               </div>
             </div>
+
+            {/* Cupón */}
+            <div className="mt-5 pt-5 border-t border-zinc-800">
+              {coupon ? (
+                <div className="flex items-center justify-between bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-2.5">
+                  <div className="text-sm">
+                    <span className="text-green-400 font-mono font-bold">{coupon.code}</span>
+                    <p className="text-zinc-400 text-xs mt-0.5">
+                      {coupon.type === 'free_shipping' ? 'Envío gratis aplicado' : 'Descuento aplicado'}
+                    </p>
+                  </div>
+                  <button onClick={handleRemoveCoupon}
+                    className="text-zinc-400 hover:text-red-400 text-xs transition-colors">
+                    Quitar
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleApply}>
+                  <label className="block text-zinc-400 text-xs mb-2">¿Tienes un cupón?</label>
+                  <div className="flex gap-2">
+                    <input
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.toUpperCase())}
+                      placeholder="CÓDIGO"
+                      className="flex-1 min-w-0 bg-zinc-950 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm font-mono uppercase focus:outline-none focus:border-accent"
+                    />
+                    <button type="submit" disabled={applying || !code.trim()}
+                      className="px-4 py-2 rounded-lg text-sm bg-zinc-800 text-white hover:bg-zinc-700 disabled:opacity-50 transition-colors whitespace-nowrap">
+                      {applying ? '...' : 'Aplicar'}
+                    </button>
+                  </div>
+                  {couponMsg && <p className="text-red-400 text-xs mt-2">{couponMsg}</p>}
+                </form>
+              )}
+            </div>
+
 
             <Link
               href="/checkout"

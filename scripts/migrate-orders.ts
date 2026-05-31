@@ -1,15 +1,14 @@
 /**
  * scripts/migrate-orders.ts
  *
- * Fetches all orders from Wix Orders API and inserts them into
- * Supabase (orders + order_items tables).
+ * Fetches all PAID orders from Wix Stores v2 API (offset pagination)
+ * and inserts them into Supabase (orders + order_items tables).
  *
  * Idempotent: skips orders whose openpay_transaction_id = "wix_<wixOrderId>"
  * already exists in Supabase.
  *
  * Usage:
- *   npx ts-node -P tsconfig.scripts.json scripts/migrate-orders.ts
- *   or: npm run migrate:orders
+ *   npm run migrate:orders
  *
  * Env vars needed:
  *   WIX_API_KEY
@@ -19,10 +18,22 @@
  *   SUPABASE_SERVICE_ROLE_KEY
  */
 
-import 'dotenv/config'
 import { createClient } from '@supabase/supabase-js'
+import * as fs from 'fs'
+import * as path from 'path'
 
-const WIX_ORDERS_API = 'https://www.wixapis.com/ecom/v1/orders'
+// Cargar .env.local manualmente (sin dotenv)
+const envPath = path.resolve(process.cwd(), '.env.local')
+if (fs.existsSync(envPath)) {
+  const lines = fs.readFileSync(envPath, 'utf-8').split('\n')
+  for (const line of lines) {
+    const [key, ...vals] = line.split('=')
+    if (key && vals.length) process.env[key.trim()] = vals.join('=').trim()
+  }
+}
+
+// Stores v2 — offset pagination works correctly here
+const WIX_ORDERS_API = 'https://www.wixapis.com/stores/v2/orders/query'
 const HEADERS = {
   'Content-Type':   'application/json',
   'Authorization':  process.env.WIX_API_KEY ?? '',
@@ -36,93 +47,101 @@ const supabase = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
-interface WixLineItem {
-  id:           string
-  productName:  { original: string }
-  quantity:     number
-  price:        { amount: string }
-  catalogReference?: { catalogItemId: string }
+// ─── Wix Stores v2 types ─────────────────────────────────────────────────────
+
+interface WixAddress {
+  fullName?:    { firstName?: string; lastName?: string }
+  country?:     string
+  subdivision?: string
+  city?:        string
+  zipCode?:     string
+  phone?:       string
+  email?:       string
+  addressLine1?: string
 }
 
-interface WixOrder {
-  id:           string
-  number:       number
-  createdDate:  string
-  status:       string
-  priceSummary: {
-    subtotal: { amount: string }
-    total:    { amount: string }
-    shipping: { amount: string }
+interface WixLineItemV2 {
+  index:      number
+  quantity:   number
+  price:      string
+  name:       string
+  productId?: string
+}
+
+interface WixOrderV2 {
+  id:                string
+  number:            number
+  dateCreated:       string
+  paymentStatus:     string
+  fulfillmentStatus: string
+  totals: {
+    subtotal: string
+    shipping: string
+    total:    string
+  }
+  buyerInfo?: {
+    email?: string
+    phone?: string
+    firstName?: string
+    lastName?:  string
   }
   billingInfo?: {
-    contactDetails?: {
-      firstName?: string
-      lastName?:  string
-      email?:     string
-      phone?:     string
-    }
+    address?: WixAddress
   }
   shippingInfo?: {
-    logistics?: {
-      shippingDestination?: {
-        address?: {
-          addressLine?: string
-          city?:        string
-          postalCode?:  string
-          subdivision?: string
-          country?:     string
-        }
-        contactDetails?: { fullName?: string; phone?: string }
-      }
+    shipmentDetails?: {
+      address?: WixAddress
     }
   }
-  lineItems: WixLineItem[]
-  paymentStatus: string
+  lineItems: WixLineItemV2[]
 }
 
-function wixStatusToSupabase(status: string, paymentStatus: string): string {
-  if (paymentStatus === 'PAID') {
-    if (status === 'FULFILLED') return 'delivered'
-    if (status === 'PARTIALLY_FULFILLED') return 'shipped'
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function wixStatusToSupabase(fulfillment: string, payment: string): string {
+  if (payment === 'PAID') {
+    if (fulfillment === 'FULFILLED')           return 'delivered'
+    if (fulfillment === 'PARTIALLY_FULFILLED') return 'shipped'
     return 'paid'
   }
-  if (status === 'CANCELED') return 'cancelled'
+  if (payment === 'CANCELED' || fulfillment === 'CANCELED') return 'cancelled'
   return 'pending'
 }
 
-async function fetchAllWixOrders(): Promise<WixOrder[]> {
-  const all: WixOrder[] = []
-  let cursor = ''
+async function fetchWixOrdersPage(offset: number, limit = 100): Promise<{
+  orders: WixOrderV2[]
+  total:  number
+}> {
+  const res = await fetch(WIX_ORDERS_API, {
+    method:  'POST',
+    headers: HEADERS,
+    body: JSON.stringify({
+      query: {
+        filter: JSON.stringify({ paymentStatus: 'PAID' }),
+        paging: { limit, offset },
+      },
+    }),
+  })
 
-  do {
-    const body: Record<string, unknown> = { paging: { limit: 100 } }
-    if (cursor) (body as Record<string, unknown>).cursorPaging = { cursor }
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Wix orders query failed: ${res.status} — ${err}`)
+  }
 
-    const res = await fetch(`${WIX_ORDERS_API}/search`, {
-      method:  'POST',
-      headers: HEADERS,
-      body:    JSON.stringify(body),
-    })
+  const json = await res.json() as {
+    orders?:       WixOrderV2[]
+    totalResults?: number
+  }
 
-    if (!res.ok) {
-      const err = await res.text()
-      throw new Error(`Wix orders fetch failed: ${res.status} — ${err}`)
-    }
-
-    const json = await res.json() as {
-      orders:   WixOrder[]
-      metadata?: { cursors?: { next?: string }; hasNext?: boolean }
-    }
-    all.push(...(json.orders ?? []))
-    cursor = json.metadata?.hasNext ? (json.metadata.cursors?.next ?? '') : ''
-  } while (cursor)
-
-  return all
+  return {
+    orders: json.orders ?? [],
+    total:  json.totalResults ?? 0,
+  }
 }
 
-async function fetchSupabaseProducts(): Promise<Map<string, string>> {
-  /** Returns: wixProductId → supabase product UUID  (stored in products.wix_id if exists, else match by name) */
-  const { data } = await supabase.from('products').select('id, name, wix_id')
+async function fetchSupabaseProductMap(): Promise<Map<string, string>> {
+  /** Returns: wixProductId → supabase product UUID */
+  const { data } = await supabase.from('products').select('id, wix_id')
   const map = new Map<string, string>()
   for (const p of data ?? []) {
     if (p.wix_id) map.set(p.wix_id, p.id)
@@ -130,89 +149,114 @@ async function fetchSupabaseProducts(): Promise<Map<string, string>> {
   return map
 }
 
-async function main() {
-  console.log('🔄  Fetching Wix orders...')
-  const wixOrders = await fetchAllWixOrders()
-  console.log(`   Found ${wixOrders.length} Wix orders.`)
+// ─── Main ────────────────────────────────────────────────────────────────────
 
-  // Build set of already-migrated wix order IDs
+async function main() {
+  // Build set of already-migrated wix order IDs (idempotency)
+  console.log('🔄  Fetching existing Wix orders from Supabase...')
   const { data: existingOrders } = await supabase
     .from('orders')
     .select('openpay_transaction_id')
     .like('openpay_transaction_id', 'wix_%')
 
   const migratedIds = new Set(
-    (existingOrders ?? []).map((o) => o.openpay_transaction_id)
+    (existingOrders ?? []).map((o) => o.openpay_transaction_id as string)
   )
+  console.log(`   Already migrated: ${migratedIds.size}`)
 
-  const productMap = await fetchSupabaseProducts()
+  const productMap = await fetchSupabaseProductMap()
+  console.log(`   Product map size: ${productMap.size}`)
 
   let inserted = 0
   let skipped  = 0
   let errors   = 0
+  let offset   = 0
+  const limit  = 100
+  let total    = Infinity
 
-  for (const wo of wixOrders) {
-    const wixRef = `wix_${wo.id}`
+  console.log('🔄  Fetching Wix orders (Stores v2, offset pagination)...')
 
-    if (migratedIds.has(wixRef)) {
-      skipped++
-      continue
+  while (offset < total) {
+    const { orders, total: pageTotal } = await fetchWixOrdersPage(offset, limit)
+
+    if (offset === 0) {
+      total = pageTotal
+      console.log(`   Total PAID orders on Wix: ${total}`)
     }
 
-    const contact = wo.billingInfo?.contactDetails
-    const dest    = wo.shippingInfo?.logistics?.shippingDestination
-    const addr    = dest?.address
+    if (orders.length === 0) break
 
-    const subtotal     = parseFloat(wo.priceSummary.subtotal.amount)
-    const shippingCost = parseFloat(wo.priceSummary.shipping.amount)
-    const total        = parseFloat(wo.priceSummary.total.amount)
+    for (const wo of orders) {
+      const wixRef = `wix_${wo.id}`
 
-    const shippingAddress = addr ? {
-      street:     addr.addressLine ?? '',
-      city:       addr.city ?? '',
-      state:      addr.subdivision ?? '',
-      postalCode: addr.postalCode ?? '',
-      country:    addr.country ?? 'MX',
-      phone:      dest?.contactDetails?.phone ?? contact?.phone ?? '',
-    } : null
+      if (migratedIds.has(wixRef)) {
+        skipped++
+        continue
+      }
 
-    const { data: order, error: orderErr } = await supabase
-      .from('orders')
-      .insert({
-        profile_id:             null,
-        status:                 wixStatusToSupabase(wo.status, wo.paymentStatus),
-        subtotal,
-        shipping_cost:          shippingCost,
-        total,
-        openpay_transaction_id: wixRef,
-        shipping_address:       shippingAddress,
-        customer_email:         contact?.email ?? null,
-        created_at:             wo.createdDate,
-      })
-      .select('id')
-      .single()
+      const addr =
+        wo.shippingInfo?.shipmentDetails?.address ??
+        wo.billingInfo?.address
 
-    if (orderErr || !order) {
-      console.error(`  ✗  Order ${wo.number} (${wo.id}): ${orderErr?.message}`)
-      errors++
-      continue
+      const shippingAddress = addr ? {
+        street:     addr.addressLine1 ?? '',
+        city:       addr.city ?? '',
+        state:      addr.subdivision ?? '',
+        postalCode: addr.zipCode ?? '',
+        country:    addr.country ?? 'MX',
+        phone:      addr.phone ?? wo.buyerInfo?.phone ?? '',
+      } : null
+
+      const subtotal     = parseFloat(wo.totals.subtotal)
+      const shippingCost = parseFloat(wo.totals.shipping)
+      const total_amount = parseFloat(wo.totals.total)
+
+      const { data: order, error: orderErr } = await supabase
+        .from('orders')
+        .insert({
+          profile_id:             null,
+          status:                 wixStatusToSupabase(wo.fulfillmentStatus, wo.paymentStatus),
+          subtotal,
+          shipping_cost:          shippingCost,
+          total:                  total_amount,
+          openpay_transaction_id: wixRef,
+          shipping_address:       shippingAddress,
+          customer_email:         wo.buyerInfo?.email ?? addr?.email ?? null,
+          customer_name: [wo.buyerInfo?.firstName, wo.buyerInfo?.lastName]
+            .filter(Boolean).join(' ').trim() || null,
+          wix_order_number: wo.number,
+          created_at:             wo.dateCreated,
+        })
+        .select('id')
+        .single()
+
+      if (orderErr || !order) {
+        console.error(`  ✗  Order #${wo.number} (${wo.id}): ${orderErr?.message}`)
+        errors++
+        continue
+      }
+
+      // Insert line items
+      const items = wo.lineItems.map((li) => ({
+        order_id:   order.id,
+        product_id: li.productId ? (productMap.get(li.productId) ?? null) : null,
+        quantity:   li.quantity,
+        unit_price: parseFloat(li.price),
+      }))
+
+      const { error: itemsErr } = await supabase.from('order_items').insert(items)
+      if (itemsErr) {
+        console.warn(`  ⚠  Order #${wo.number}: items insert failed — ${itemsErr.message}`)
+      }
+
+      inserted++
+      if (inserted % 50 === 0) {
+        console.log(`  ✓  ${inserted} inserted (offset ${offset + orders.indexOf(wo) + 1}/${total})...`)
+      }
     }
 
-    // Insert line items
-    const items = wo.lineItems.map((li) => ({
-      order_id:   order.id,
-      product_id: productMap.get(li.catalogReference?.catalogItemId ?? '') ?? null,
-      quantity:   li.quantity,
-      unit_price: parseFloat(li.price.amount),
-    }))
-
-    const { error: itemsErr } = await supabase.from('order_items').insert(items)
-    if (itemsErr) {
-      console.warn(`  ⚠  Order ${wo.number}: items insert failed — ${itemsErr.message}`)
-    }
-
-    console.log(`  ✓  Order #${wo.number} — $${total} MXN (${wixStatusToSupabase(wo.status, wo.paymentStatus)})`)
-    inserted++
+    offset += orders.length
+    console.log(`  📦  Processed ${Math.min(offset, total)}/${total}`)
   }
 
   console.log(`\n✅  Done. Inserted: ${inserted}  |  Skipped: ${skipped}  |  Errors: ${errors}`)

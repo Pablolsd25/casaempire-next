@@ -112,9 +112,11 @@ function AmexIcon() {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, subtotal, total, clearCart } = useCartStore()
-  const sub = subtotal()
-  const tot = total()
+  const { items, subtotal, total, clearCart, coupon, discount, shipping } = useCartStore()
+  const sub  = subtotal()
+  const tot  = total()
+  const desc = discount()
+  const ship = shipping()
 
   const [openpayReady, setOpenpayReady] = useState(false)
   const [deviceSessionId, setDeviceSessionId] = useState('')
@@ -274,6 +276,7 @@ export default function CheckoutPage() {
               deviceSessionId,
               idempotencyKey,
               amount: tot,
+              couponCode: coupon?.code ?? null,
               items: items.map((i) => ({
                 productId: i.product.id,
                 name:      i.product.name,
@@ -543,8 +546,20 @@ export default function CheckoutPage() {
               <div className="flex justify-between text-zinc-400">
                 <span>Subtotal</span><span>${sub.toFixed(2)}</span>
               </div>
+              {coupon && desc > 0 && (
+                <div className="flex justify-between text-green-400">
+                  <span className="flex items-center gap-1.5">
+                    Descuento
+                    <span className="font-mono text-xs bg-green-500/15 px-1.5 py-0.5 rounded">{coupon.code}</span>
+                  </span>
+                  <span>−${desc.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-zinc-400">
-                <span>Envío</span><span>$99.00</span>
+                <span>Envío</span>
+                {coupon?.freeShipping
+                  ? <span className="text-green-400">Gratis</span>
+                  : <span>${ship.toFixed(2)}</span>}
               </div>
               <div className="flex justify-between text-white font-bold text-base pt-2 border-t border-zinc-800">
                 <span>Total</span><span>${tot.toFixed(2)} MXN</span>

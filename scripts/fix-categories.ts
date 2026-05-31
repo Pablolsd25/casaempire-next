@@ -3,6 +3,18 @@
  * to the correct seed categories (hombres / mujeres)
  */
 import { createClient } from '@supabase/supabase-js'
+import * as fs from 'fs'
+import * as path from 'path'
+
+// Cargar .env.local automáticamente
+const envPath = path.resolve(process.cwd(), '.env.local')
+if (fs.existsSync(envPath)) {
+  const lines = fs.readFileSync(envPath, 'utf-8').split('\n')
+  for (const line of lines) {
+    const [key, ...vals] = line.split('=')
+    if (key && vals.length) process.env[key.trim()] = vals.join('=').trim()
+  }
+}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

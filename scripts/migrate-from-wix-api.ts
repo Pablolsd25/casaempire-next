@@ -103,7 +103,7 @@ async function migrateProducts() {
     const res = await fetch('https://www.wixapis.com/stores-reader/v1/products/query', {
       method: 'POST',
       headers: wixHeaders,
-      body: JSON.stringify({ query: { paging: { limit, offset } } }),
+      body: JSON.stringify({ includeHiddenProducts: true, query: { paging: { limit, offset } } }),
     })
 
     if (!res.ok) {
@@ -232,11 +232,15 @@ async function migrateProducts() {
         if (publicUrl) imageUrls.push(publicUrl)
       }
 
-      // Precio
-      const price        = parseFloat(product.priceData?.price ?? '0')
-      const comparePrice = product.priceData?.compareAtPrice
-        ? parseFloat(product.priceData.compareAtPrice)
-        : null
+      // Precio: discountedPrice es lo que el cliente paga; price es el tachado
+      const rawPrice     = parseFloat(product.priceData?.price ?? '0')
+      const discounted   = parseFloat(product.priceData?.discountedPrice ?? String(rawPrice))
+      const price        = discounted > 0 ? discounted : rawPrice
+      const comparePrice = discounted < rawPrice
+        ? rawPrice
+        : (product.priceData?.compareAtPrice
+            ? parseFloat(product.priceData.compareAtPrice)
+            : null)
 
       // Stock
       // Si Wix no rastrea cantidad exacta (trackQuantity=false), usa inStock como señal
@@ -258,43 +262,45 @@ async function migrateProducts() {
       // is_offer: true si el producto pertenece a alguna colección de ofertas
       const isOffer = collIds.some((id: string) => ofertasCollIds.has(id))
 
-      // Verificar si ya existe
+      // Verificar si ya existe (por slug o por wix_id)
       const { data: existing } = await supabase
         .from('products')
         .select('id')
         .eq('slug', slug)
-        .single()
+        .maybeSingle()
+
+      // Payload base (no incluye wix_id — columna opcional; se agrega si existe)
+      const basePayload = {
+        name:             product.name,
+        description:      product.description ?? null,
+        price,
+        compare_at_price: comparePrice,
+        stock,
+        images:           imageUrls,
+        videos:           videoUrls,
+        category_id:      categoryId,
+        is_offer:         isOffer,
+        is_active:        product.visible ?? true,
+      }
 
       if (existing) {
-        await supabase
+        const { error: updateErr } = await supabase
           .from('products')
-          .update({
-            name:             product.name,
-            description:      product.description ?? null,
-            price,
-            compare_at_price: comparePrice,
-            stock,
-            images:           imageUrls,
-            videos:           videoUrls,
-            category_id:      categoryId,
-            is_offer:         isOffer,
-            is_active:        product.visible ?? true,
-          })
+          .update(basePayload)
           .eq('id', existing.id)
+        if (updateErr) throw new Error(`update failed: ${updateErr.message}`)
+
+        // Intentar setear wix_id (falla silenciosamente si la columna no existe aún)
+        await supabase.from('products').update({ wix_id: product.id }).eq('id', existing.id)
       } else {
-        await supabase.from('products').insert({
-          name:             product.name,
+        const { error: insertErr } = await supabase.from('products').insert({
+          ...basePayload,
           slug,
-          description:      product.description ?? null,
-          price,
-          compare_at_price: comparePrice,
-          stock,
-          images:           imageUrls,
-          videos:           videoUrls,
-          category_id:      categoryId,
-          is_offer:         isOffer,
-          is_active:        product.visible ?? true,
         })
+        if (insertErr) throw new Error(`insert failed: ${insertErr.message}`)
+
+        // Intentar setear wix_id en la fila recién insertada
+        await supabase.from('products').update({ wix_id: product.id }).eq('slug', slug)
       }
 
       migratedCount++
@@ -424,8 +430,9 @@ interface WixProduct {
   visible?:      boolean
   collectionIds?: string[]
   priceData?: {
-    price:           string
-    compareAtPrice?: string
+    price:             string
+    discountedPrice?:  string
+    compareAtPrice?:   string
   }
   stock?: {
     trackQuantity?: boolean

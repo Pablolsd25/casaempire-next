@@ -14,12 +14,15 @@ export interface Product {
   description: string | null
   price: number
   compare_at_price: number | null
+  cost: number | null
   stock: number
   category_id: string | null
   images: string[]
   videos: string[]
   tags: string[]
   is_active: boolean
+  is_offer: boolean
+  wix_id: string | null
   created_at: string
   category?: Category
 }
@@ -49,10 +52,14 @@ export interface Order {
   id: string
   profile_id: string | null
   customer_email: string | null
+  customer_name: string | null
+  wix_order_number: number | null
   status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled'
   total: number
   subtotal: number
   shipping_cost: number
+  discount: number
+  coupon_code: string | null
   openpay_transaction_id: string | null
   tracking_number: string | null
   shipping_address: Address | null
@@ -85,4 +92,46 @@ export interface BlogPost {
 export interface CartItem {
   product: Product
   quantity: number
+}
+
+export type CouponType = 'percentage' | 'fixed' | 'free_shipping'
+
+export interface Coupon {
+  id: string
+  code: string
+  type: CouponType
+  value: number
+  min_purchase: number
+  max_uses: number | null
+  used_count: number
+  expires_at: string | null
+  is_active: boolean
+  created_at: string
+}
+
+/** Cupón aplicado en el carrito (subset validado + descuento calculado) */
+export interface AppliedCoupon {
+  code: string
+  type: CouponType
+  value: number
+  discount: number
+  freeShipping: boolean
+}
+
+/** Archivo en la galería de medios (Supabase Storage, bucket `images`) */
+export interface MediaItem {
+  /** Ruta completa dentro del bucket, p.ej. "products/abc_123.jpg" */
+  path: string
+  /** Nombre del archivo */
+  name: string
+  /** Carpeta contenedora, p.ej. "products" */
+  folder: string
+  /** URL pública */
+  url: string
+  /** 'image' | 'video' según extensión */
+  kind: 'image' | 'video'
+  /** Tamaño en bytes (si está disponible) */
+  size: number | null
+  /** Fecha de creación ISO (si está disponible) */
+  created_at: string | null
 }

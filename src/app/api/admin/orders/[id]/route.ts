@@ -3,26 +3,24 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendShippingNotification } from '@/lib/email/templates'
 
+async function getAdminUser() {
+  const auth = await createClient()
+  const { data: { user } } = await auth.auth.getUser()
+  if (!user) return null
+
+  const adminEmails = (process.env.ADMIN_EMAILS ?? '')
+    .split(',').map((e) => e.trim()).filter(Boolean)
+
+  if (adminEmails.length > 0 && !adminEmails.includes(user.email ?? '')) return null
+  return user
+}
+
 // PATCH /api/admin/orders/[id] — actualizar status o tracking_number
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
+  const user = await getAdminUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-
-  // ── Guard de rol admin ────────────────────────────────────────────────────
-  const adminEmails = (process.env.ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim())
-    .filter(Boolean)
-
-  if (adminEmails.length > 0 && !adminEmails.includes(user.email ?? '')) {
-    console.warn(`[admin] Acceso denegado para: ${user.email}`)
-    return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-  }
-  // ─────────────────────────────────────────────────────────────────────────
 
   const supabase = createAdminClient()
   const body = await req.json()
@@ -46,7 +44,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Estado inválido' }, { status: 400 })
   }
 
-  // ── Actualizar orden ──────────────────────────────────────────────────────
   const { data: order, error } = await supabase
     .from('orders')
     .update({ status })
@@ -68,7 +65,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await sendShippingNotification({
         to:             order.customer_email,
         orderId:        order.id,
-        name:           order.customer_email,   // nombre del cliente (usamos email como fallback)
+        name:           order.customer_name ?? order.customer_email,
         trackingNumber: order.tracking_number ?? undefined,
         shippingAddress: addr ? {
           street:  addr.street  ?? '',
@@ -78,13 +75,28 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           country: addr.country ?? 'México',
         } : undefined,
       })
-
-      console.log('[admin] Email de envío enviado a:', order.customer_email)
     } catch (emailErr) {
-      // No bloqueamos la respuesta si el email falla
       console.warn('[admin] Error al enviar email de envío:', emailErr)
     }
   }
 
   return NextResponse.json(order)
+}
+
+// DELETE /api/admin/orders/[id] — eliminar orden y sus items
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+
+  const user = await getAdminUser()
+  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const supabase = createAdminClient()
+
+  // Delete line items first (foreign key)
+  await supabase.from('order_items').delete().eq('order_id', id)
+
+  const { error } = await supabase.from('orders').delete().eq('id', id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  return NextResponse.json({ ok: true })
 }

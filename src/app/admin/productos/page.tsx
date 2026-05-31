@@ -26,7 +26,7 @@ export default async function AdminProductos({
 
   let query = supabase
     .from('products')
-    .select('id, name, slug, price, compare_at_price, stock, is_active, images, category:categories(name)', { count: 'exact' })
+    .select('id, name, slug, price, compare_at_price, is_active, images, category:categories(name)', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to)
 
@@ -99,9 +99,6 @@ export default async function AdminProductos({
                   <p className="text-white font-medium text-sm truncate">{p.name}</p>
                   <p className="text-zinc-500 text-xs">{cat?.name ?? '—'} · ${Number(p.price).toLocaleString('es-MX')}</p>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    <span className={`text-xs font-medium ${p.stock === 0 ? 'text-red-400' : p.stock <= 5 ? 'text-yellow-400' : 'text-zinc-400'}`}>
-                      Stock: {p.stock}
-                    </span>
                     <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${p.is_active ? 'bg-green-500/20 text-green-400' : 'bg-zinc-700 text-zinc-400'}`}>
                       {p.is_active ? 'Activo' : 'Oculto'}
                     </span>
@@ -139,7 +136,6 @@ export default async function AdminProductos({
                 <th className="text-left px-4 py-3">Producto</th>
                 <th className="text-left px-4 py-3">Categoría</th>
                 <th className="text-right px-4 py-3">Precio</th>
-                <th className="text-right px-4 py-3">Stock</th>
                 <th className="text-center px-4 py-3">Estado</th>
                 <th className="text-right px-4 py-3">Acciones</th>
               </tr>
@@ -175,11 +171,6 @@ export default async function AdminProductos({
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={p.stock === 0 ? 'text-red-400' : p.stock <= 5 ? 'text-yellow-400' : 'text-zinc-300'}>
-                        {p.stock}
-                      </span>
-                    </td>
                     <td className="px-4 py-3 text-center">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${p.is_active ? 'bg-green-500/20 text-green-400' : 'bg-zinc-700 text-zinc-400'}`}>
                         {p.is_active ? 'Activo' : 'Oculto'}
@@ -208,7 +199,7 @@ export default async function AdminProductos({
               })}
               {(products ?? []).length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-zinc-600">
+                  <td colSpan={5} className="py-12 text-center text-zinc-600">
                     No se encontraron productos
                   </td>
                 </tr>
