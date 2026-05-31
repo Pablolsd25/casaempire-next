@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function POST(req: Request) {
   try {
@@ -8,14 +9,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Campos requeridos faltantes' }, { status: 400 })
     }
 
-    // If RESEND_API_KEY is configured, send email notification
+    // Persistir en DB SIEMPRE (antes del email para no perder si Resend falla)
+    const supabase = createAdminClient()
+    await supabase.from('contact_submissions').insert({
+      nombre:   nombre  ?? null,
+      apellido: apellido ?? null,
+      email,
+      whatsapp: whatsapp ?? null,
+      mensaje,
+    })
+
+    // Si RESEND_API_KEY está configurado, enviar email de notificación
     const resendKey = process.env.RESEND_API_KEY
     if (resendKey) {
       const { Resend } = await import('resend')
       const resend = new Resend(resendKey)
       await resend.emails.send({
-        from: 'Empire Nutrition <contacto@empirenutri.com>',
-        to: 'cempirenutrition@outlook.com',
+        from:    'Empire Nutrition <contacto@empirenutri.com>',
+        to:      'cempirenutrition@outlook.com',
         replyTo: email,
         subject: `Nuevo mensaje de contacto — ${nombre ?? ''} ${apellido ?? ''}`.trim(),
         html: `

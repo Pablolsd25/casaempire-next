@@ -77,6 +77,21 @@ function IconTicket() {
     </svg>
   )
 }
+function IconMail() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+      <polyline points="22,6 12,13 2,6" />
+    </svg>
+  )
+}
+function IconStar() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  )
+}
 function IconUser() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -124,6 +139,8 @@ const NAV_SECTIONS = [
     label: 'Contenido',
     items: [
       { href: '/admin/blog',          label: 'Blog',          Icon: IconPen      },
+      { href: '/admin/mensajes',      label: 'Mensajes',      Icon: IconMail     },
+      { href: '/admin/resenas',       label: 'Reseñas',       Icon: IconStar     },
       { href: '/admin/configuracion', label: 'Configuración', Icon: IconSettings },
     ],
   },
@@ -149,7 +166,13 @@ function CloseIcon() {
 }
 
 /* ── Sidebar component ─────────────────────────────────────── */
-export default function AdminSidebar({ userEmail }: { userEmail: string }) {
+export default function AdminSidebar({
+  userEmail,
+  unreadMessages = 0,
+}: {
+  userEmail: string
+  unreadMessages?: number
+}) {
   const path = usePathname()
   const [open, setOpen] = useState(false)
 
@@ -204,7 +227,13 @@ export default function AdminSidebar({ userEmail }: { userEmail: string }) {
                 <span className={`flex-shrink-0 ${isActive(href) ? 'text-black' : 'text-zinc-500'} transition-colors`}>
                   <Icon />
                 </span>
-                <span>{label}</span>
+                <span className="flex-1">{label}</span>
+                {href === '/admin/mensajes' && unreadMessages > 0 && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center
+                    ${isActive(href) ? 'bg-black/30 text-black' : 'bg-accent text-black'}`}>
+                    {unreadMessages > 99 ? '99+' : unreadMessages}
+                  </span>
+                )}
               </Link>
             ))}
           </div>

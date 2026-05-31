@@ -19,7 +19,8 @@
     "backfill:items": "tsx scripts/backfill-order-items.ts",
     "sync:fulfillment": "tsx scripts/sync-fulfillment.ts",
     "migrate:categories": "tsx scripts/migrate-category-images.ts",
-    "migrate:contacts": "tsx scripts/migrate-contacts.ts"
+    "migrate:contacts": "tsx scripts/migrate-contacts.ts",
+    "migrate:reviews": "tsx scripts/migrate-reviews.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

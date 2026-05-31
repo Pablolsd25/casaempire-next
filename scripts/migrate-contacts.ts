@@ -115,7 +115,11 @@ function parseContact(c: WixContact) {
   // Source
   const source = c.source?.sourceType ?? c.source?.appName ?? null
 
-  return { firstName, lastName, email, phone, labels, source }
+  // Subscriber status desde extendedFields
+  const extFields = (info as { extendedFields?: { items?: Record<string, string> } }).extendedFields?.items ?? {}
+  const subscriberStatus = extFields['emailSubscriptions.subscriptionStatus'] ?? null
+
+  return { firstName, lastName, email, phone, labels, source, subscriberStatus }
 }
 
 // ─── Main ────────────────────────────────────────────────────
@@ -182,7 +186,7 @@ async function main() {
       const BATCH = 50
       for (let i = 0; i < contacts.length; i += BATCH) {
         const chunk = contacts.slice(i, i + BATCH).map(c => {
-          const { firstName, lastName, email, phone, labels, source } = parseContact(c)
+          const { firstName, lastName, email, phone, labels, source, subscriberStatus } = parseContact(c)
           return {
             wix_contact_id:   c.id,
             first_name:       firstName,
@@ -191,6 +195,7 @@ async function main() {
             phone,
             labels,
             source,
+            subscriber_status: subscriberStatus,
             raw:              c,
             wix_created_date: c.createdDate ?? null,
           }
