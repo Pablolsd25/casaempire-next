@@ -16,16 +16,10 @@ const navLinks = [
   { href: '/contacto',          label: 'Contacto' },
 ]
 
-interface AuthState {
-  loggedIn: boolean
-  name?: string
-  isAdmin?: boolean
-}
-
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const [auth, setAuth] = useState<AuthState>({ loggedIn: false })
+  const [isAdmin, setIsAdmin] = useState(false)
   const { toggleCart, itemCount } = useCartStore()
   const count = itemCount()
 
@@ -34,8 +28,8 @@ export default function Header() {
   useEffect(() => {
     fetch('/api/auth/me')
       .then(r => r.json())
-      .then((data: AuthState) => setAuth(data))
-      .catch(() => setAuth({ loggedIn: false }))
+      .then((data: { isAdmin?: boolean }) => setIsAdmin(!!data.isAdmin))
+      .catch(() => setIsAdmin(false))
   }, [])
 
   return (
@@ -84,7 +78,7 @@ export default function Header() {
               </Link>
 
               {/* Admin — solo si es admin real */}
-              {auth.loggedIn && auth.isAdmin && (
+              {isAdmin && (
                 <Link
                   href="/admin"
                   className="text-accent hover:text-white text-xs font-display font-bold uppercase tracking-widest border border-accent/40 hover:border-accent px-2 py-0.5 rounded transition-all"
@@ -93,32 +87,13 @@ export default function Header() {
                 </Link>
               )}
 
-              {/* Cuenta / sesión */}
-              {auth.loggedIn ? (
-                <div className="flex items-center gap-3">
-                  <Link
-                    href="/cuenta"
-                    className="text-zinc-400 hover:text-accent text-sm transition-colors hidden sm:inline"
-                  >
-                    {auth.name ?? 'Mi cuenta'}
-                  </Link>
-                  <form method="POST" action="/api/auth/signout">
-                    <button
-                      type="submit"
-                      className="text-zinc-600 hover:text-zinc-300 text-xs transition-colors"
-                    >
-                      Cerrar sesión
-                    </button>
-                  </form>
-                </div>
-              ) : (
-                <Link
-                  href="/login"
-                  className="text-zinc-400 hover:text-accent text-sm transition-colors"
-                >
-                  Iniciar sesión
-                </Link>
-              )}
+              {/* Mis pedidos (sin login) */}
+              <Link
+                href="/mis-pedidos"
+                className="text-zinc-400 hover:text-accent text-sm transition-colors hidden sm:inline"
+              >
+                Mi pedido
+              </Link>
 
               {/* Carrito */}
               <button
@@ -169,22 +144,20 @@ export default function Header() {
                 {link.label}
               </Link>
             ))}
-            {auth.loggedIn && auth.isAdmin && (
+            <Link
+              href="/mis-pedidos"
+              className="block text-zinc-300 text-sm font-display uppercase tracking-wide py-2"
+              onClick={() => setMenuOpen(false)}
+            >
+              Mi pedido
+            </Link>
+            {isAdmin && (
               <Link
                 href="/admin"
                 className="block text-accent text-sm font-display uppercase tracking-wide py-2"
                 onClick={() => setMenuOpen(false)}
               >
                 Admin
-              </Link>
-            )}
-            {!auth.loggedIn && (
-              <Link
-                href="/login"
-                className="block text-zinc-300 text-sm font-display uppercase tracking-wide py-2"
-                onClick={() => setMenuOpen(false)}
-              >
-                Iniciar sesión
               </Link>
             )}
           </div>
