@@ -7,7 +7,9 @@ import { createClient } from '@/lib/supabase/client'
 
 function LoginForm() {
   const searchParams = useSearchParams()
-  const redirect = searchParams.get('redirect') ?? '/cuenta'
+  const redirectParam = searchParams.get('redirect') ?? '/cuenta'
+  // Usamos el endpoint servidor para detectar si es admin y redirigir a /admin automáticamente
+  const redirect = `/api/auth/post-login?redirect=${encodeURIComponent(redirectParam)}`
 
   const [mode, setMode]         = useState<'login' | 'register'>('login')
   const [email, setEmail]       = useState('')
