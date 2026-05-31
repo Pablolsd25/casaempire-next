@@ -24,13 +24,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const supabase = createAdminClient()
   const body = await req.json()
-  const { status, tracking_number } = body
+  const { status, tracking_number, notes } = body
 
   // ── Actualizar tracking_number (sin cambiar status) ───────────────────────
-  if (tracking_number !== undefined && status === undefined) {
+  if (tracking_number !== undefined && status === undefined && notes === undefined) {
     const { data: order, error } = await supabase
       .from('orders')
       .update({ tracking_number: tracking_number || null })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error || !order) return NextResponse.json({ error: error?.message ?? 'Error' }, { status: 400 })
+    return NextResponse.json(order)
+  }
+
+  // ── Actualizar nota interna ───────────────────────────────────────────────
+  if (notes !== undefined && status === undefined) {
+    const { data: order, error } = await supabase
+      .from('orders')
+      .update({ notes: notes || null })
       .eq('id', id)
       .select()
       .single()

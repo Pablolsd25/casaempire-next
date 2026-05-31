@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import OrderStatusButton from './OrderStatusButton'
 import TrackingInput from './TrackingInput'
 import RefundButton from './RefundButton'
+import OrderNoteInput from './OrderNoteInput'
 
 export const metadata = { title: 'Detalle de Orden | Admin' }
 
@@ -229,15 +230,21 @@ export default async function OrdenDetallePage({
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5">
             <p className="text-white font-semibold mb-5">Actividad del pedido</p>
 
+            {/* Nota interna (admin only) */}
+            <div className="mb-6">
+              <OrderNoteInput orderId={order.id} initialNote={order.notes ?? null} />
+            </div>
+
+            {/* Timeline */}
             <ol className="relative ml-3 space-y-5">
-              {/* Event: order placed */}
-              <li className="pl-5 relative">
-                <span className="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-zinc-500 ring-2 ring-zinc-900" />
-                <p className="text-zinc-300 text-sm font-medium leading-snug">
-                  {order.customer_name ?? order.customer_email ?? 'Cliente'} realizó un pedido
-                </p>
-                <p className="text-zinc-600 text-xs mt-0.5">{dateStr}</p>
-              </li>
+              {/* Nota guardada aparece en timeline */}
+              {order.notes && (
+                <li className="pl-5 relative">
+                  <span className="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-yellow-500 ring-2 ring-zinc-900" />
+                  <p className="text-zinc-300 text-sm font-medium leading-snug">Nota interna</p>
+                  <p className="text-zinc-400 text-sm mt-0.5 whitespace-pre-wrap">{order.notes}</p>
+                </li>
+              )}
 
               {/* Event: status change (if not pending) */}
               {order.status !== 'pending' && (
@@ -259,10 +266,16 @@ export default async function OrdenDetallePage({
                   <p className="text-zinc-500 font-mono text-xs mt-0.5">{order.tracking_number}</p>
                 </li>
               )}
-            </ol>
 
-            {/* Vertical line */}
-            <style>{`.activity-line::before{content:'';position:absolute;left:0.375rem;top:0.625rem;bottom:0;width:1px;background:#3f3f46}`}</style>
+              {/* Event: order placed */}
+              <li className="pl-5 relative">
+                <span className="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-zinc-500 ring-2 ring-zinc-900" />
+                <p className="text-zinc-300 text-sm font-medium leading-snug">
+                  {order.customer_name ?? order.customer_email ?? 'Cliente'} realizó un pedido
+                </p>
+                <p className="text-zinc-600 text-xs mt-0.5">{dateStr}</p>
+              </li>
+            </ol>
           </div>
 
         </div>
