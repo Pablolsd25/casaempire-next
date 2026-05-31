@@ -32,7 +32,8 @@ export default function OrderNoteInput({
       router.refresh()
       setTimeout(() => setSaved(false), 3000)
     } else {
-      setError('Error al guardar la nota.')
+      const data = await res.json().catch(() => ({}))
+      setError(data?.error ?? `Error ${res.status} al guardar la nota.`)
     }
   }
 
