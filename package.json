@@ -17,7 +17,8 @@
     "fix:offers": "tsx scripts/fix-offers.ts",
     "backfill:orders": "tsx scripts/backfill-order-fields.ts",
     "backfill:items": "tsx scripts/backfill-order-items.ts",
-    "sync:fulfillment": "tsx scripts/sync-fulfillment.ts"
+    "sync:fulfillment": "tsx scripts/sync-fulfillment.ts",
+    "migrate:categories": "tsx scripts/migrate-category-images.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
