@@ -24,6 +24,7 @@ export default async function AdminDashboard() {
       .limit(8),
     supabase.from('products')
       .select('id, name, stock, price')
+      .eq('manage_stock', true)
       .lte('stock', 5)
       .eq('is_active', true)
       .order('stock', { ascending: true })

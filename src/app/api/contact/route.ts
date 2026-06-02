@@ -25,8 +25,8 @@ export async function POST(req: Request) {
       const { Resend } = await import('resend')
       const resend = new Resend(resendKey)
       await resend.emails.send({
-        from:    'Empire Nutrition <contacto@empirenutri.com>',
-        to:      'cempirenutrition@outlook.com',
+        from:    'Empire Nutrition <contacto@casaempire.net>',
+        to:      'contacto@casaempire.net',
         replyTo: email,
         subject: `Nuevo mensaje de contacto — ${nombre ?? ''} ${apellido ?? ''}`.trim(),
         html: `

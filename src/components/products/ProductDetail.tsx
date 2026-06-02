@@ -64,19 +64,24 @@ export default function ProductDetail({
   );
   const waLink = `https://wa.me/${WA_NUMBER}?text=${waText}`;
 
+  const manageStock = product.manage_stock;
   const stockColor =
-    product.stock === 0
-      ? "text-red-400"
-      : product.stock <= 5
-        ? "text-yellow-400"
-        : "text-emerald-400";
+    !manageStock
+      ? "text-emerald-400"
+      : product.stock === 0
+        ? "text-red-400"
+        : product.stock <= 5
+          ? "text-yellow-400"
+          : "text-emerald-400";
 
   const stockLabel =
-    product.stock === 0
-      ? "Sin stock"
-      : product.stock <= 5
-        ? `¡Solo ${product.stock} disponibles!`
-        : "En stock";
+    !manageStock
+      ? "En stock"
+      : product.stock === 0
+        ? "Sin stock"
+        : product.stock <= 5
+          ? `¡Solo ${product.stock} disponibles!`
+          : "En stock";
 
   const current = mediaItems[activeMedia];
 
@@ -283,7 +288,7 @@ export default function ProductDetail({
           {/* Stock indicator */}
           <div className="flex items-center gap-2">
             <span
-              className={`w-2.5 h-2.5 rounded-full animate-pulse ${product.stock === 0 ? "bg-red-400" : product.stock <= 5 ? "bg-yellow-400" : "bg-emerald-400"}`}
+              className={`w-2.5 h-2.5 rounded-full animate-pulse ${!manageStock ? "bg-emerald-400" : product.stock === 0 ? "bg-red-400" : product.stock <= 5 ? "bg-yellow-400" : "bg-emerald-400"}`}
             />
             <span className={`text-sm font-medium ${stockColor}`}>
               {stockLabel}
@@ -330,7 +335,7 @@ export default function ProductDetail({
           )}
 
           {/* Quantity selector */}
-          {product.stock > 0 && (
+          {(!manageStock || product.stock > 0) && (
             <div className="flex items-center gap-4">
               <span className="text-zinc-500 text-xs font-display uppercase tracking-widest">
                 Cantidad
@@ -347,7 +352,7 @@ export default function ProductDetail({
                   {qty}
                 </span>
                 <button
-                  onClick={() => setQty(Math.min(product.stock, qty + 1))}
+                  onClick={() => manageStock ? setQty(Math.min(product.stock, qty + 1)) : setQty(qty + 1)}
                   className="w-11 h-11 flex items-center justify-center text-zinc-400
                     hover:text-white hover:bg-zinc-800 transition-colors text-xl font-light"
                 >
@@ -362,7 +367,7 @@ export default function ProductDetail({
             {/* Primary — Add to cart */}
             <button
               onClick={handleAddToCart}
-              disabled={product.stock === 0 || added || !allOptionsSelected}
+              disabled={(manageStock && product.stock === 0) || added || !allOptionsSelected}
               className="w-full btn-accent py-4 rounded-xl text-sm font-display font-bold uppercase
                 tracking-widest transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed
                 flex items-center justify-center gap-2.5"
@@ -381,7 +386,7 @@ export default function ProductDetail({
                   </svg>
                   ¡Agregado al carrito!
                 </>
-              ) : product.stock === 0 ? (
+              ) : manageStock && product.stock === 0 ? (
                 "Producto agotado"
               ) : (
                 <>

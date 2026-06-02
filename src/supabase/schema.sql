@@ -29,6 +29,7 @@ create table if not exists products (
   price            numeric(10,2) not null,
   compare_at_price numeric(10,2),
   stock            integer not null default 0,
+  manage_stock     boolean not null default false,
   category_id      uuid references categories(id) on delete set null,
   images           text[] default '{}',
   tags             text[] default '{}',

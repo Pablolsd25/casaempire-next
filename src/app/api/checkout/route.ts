@@ -252,16 +252,22 @@ export async function POST(req: NextRequest) {
       await supabase.rpc('increment_coupon_usage', { p_code: validCouponCode })
     }
 
-    // ── 5. Decrementar stock de cada producto (atómico vía RPC) ───────────────
-    // La función decrement_stock usa GREATEST(0, stock - qty) para evitar
-    // stock negativo. Requiere haber corrido la migración 20260529_checkout_improvements.sql
+    // ── 5. Decrementar stock solo de productos con manage_stock = true ──────
+    const { data: stockProducts } = await supabase
+      .from('products')
+      .select('id')
+      .in('id', productIds)
+      .eq('manage_stock', true)
+    const trackedIds = new Set((stockProducts ?? []).map((p: { id: string }) => p.id))
     await Promise.allSettled(
-      items.map((i: { productId: string; quantity: number }) =>
-        supabase.rpc('decrement_stock', {
-          p_product_id: i.productId,
-          p_quantity:   i.quantity,
-        })
-      )
+      items
+        .filter((i: { productId: string }) => trackedIds.has(i.productId))
+        .map((i: { productId: string; quantity: number }) =>
+          supabase.rpc('decrement_stock', {
+            p_product_id: i.productId,
+            p_quantity:   i.quantity,
+          })
+        )
     )
 
     // ── 5b. Actualizar perfil si el usuario está logeado ─────────────────────

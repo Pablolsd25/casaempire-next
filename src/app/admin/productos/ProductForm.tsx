@@ -75,6 +75,8 @@ export default function ProductForm({ product, categories }: Props) {
     tags: (product?.tags ?? []).join(", "),
     is_active: product?.is_active ?? true,
     is_offer: !!product?.compare_at_price,
+    manage_stock: product?.manage_stock ?? false,
+    stock: String(product?.stock ?? 0),
   });
 
   // ── Imágenes ──────────────────────────────────────────────────────────────
@@ -245,6 +247,8 @@ export default function ProductForm({ product, categories }: Props) {
         .filter(Boolean),
       is_active: form.is_active,
       is_offer: form.is_offer,
+      manage_stock: form.manage_stock,
+      stock: form.manage_stock ? Number(form.stock) : 0,
     };
 
     const url = isEdit
@@ -762,6 +766,35 @@ export default function ProductForm({ product, categories }: Props) {
               {form.is_active
                 ? "El producto es visible para los clientes."
                 : "El producto está oculto en la tienda."}
+            </p>
+          </div>
+
+          {/* — Stock — */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-300 text-sm">Manejar stock</span>
+              <Toggle
+                checked={form.manage_stock}
+                onChange={(v) => setForm((prev) => ({ ...prev, manage_stock: v }))}
+              />
+            </div>
+            {form.manage_stock && (
+              <div>
+                <label className="block text-zinc-500 text-xs mb-1">Piezas disponibles</label>
+                <input
+                  name="stock"
+                  type="number"
+                  min="0"
+                  value={form.stock}
+                  onChange={handleChange}
+                  className="w-full bg-zinc-950 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent transition-colors"
+                />
+              </div>
+            )}
+            <p className="text-zinc-600 text-xs">
+              {form.manage_stock
+                ? "Se descontará stock al confirmar una compra."
+                : "No se controla inventario para este producto."}
             </p>
           </div>
 

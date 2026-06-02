@@ -17,6 +17,7 @@ export interface Product {
   cost: number | null
   shipping_cost: number | null
   stock: number
+  manage_stock: boolean
   category_id: string | null
   images: string[]
   videos: string[]

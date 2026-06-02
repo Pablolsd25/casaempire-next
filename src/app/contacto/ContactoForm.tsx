@@ -163,8 +163,8 @@ export default function ContactoForm() {
                   </svg>
                 }
                 label="Email"
-                value="cempirenutrition@outlook.com"
-                href="mailto:cempirenutrition@outlook.com"
+                value="contacto@casaempire.net"
+                href="mailto:contacto@casaempire.net"
               />
               <ContactCard
                 icon={
@@ -288,11 +288,11 @@ export default function ContactoForm() {
           Para consultas sobre marcas y productos al por mayor,
           envíanos un correo electrónico a{' '}
           <a
-            href="mailto:cempirenutrition@outlook.com"
+            href="mailto:contacto@casaempire.net"
             className="underline transition-colors hover:text-white"
             style={{ color: '#E8177A' }}
           >
-            cempirenutrition@outlook.com
+            contacto@casaempire.net
           </a>
         </p>
       </section>

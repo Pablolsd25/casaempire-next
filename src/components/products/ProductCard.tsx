@@ -73,7 +73,7 @@ export default function ProductCard({ product }: Props) {
         )}
 
         {/* Sin stock */}
-        {product.stock === 0 && (
+        {product.manage_stock && product.stock === 0 && (
           <span className="absolute top-2 right-2 bg-black/80 text-zinc-400 text-[10px] font-display uppercase tracking-wide px-2 py-0.5 rounded-sm z-10">
             Agotado
           </span>
@@ -112,11 +112,11 @@ export default function ProductCard({ product }: Props) {
         {/* CTA */}
         <button
           onClick={() => addItem(product)}
-          disabled={product.stock === 0}
+          disabled={product.manage_stock && product.stock === 0}
           className="mt-1 w-full btn-accent text-xs py-2.5 rounded-sm flex items-center justify-center gap-1.5
             disabled:opacity-30 disabled:cursor-not-allowed"
         >
-          {product.stock === 0 ? (
+          {product.manage_stock && product.stock === 0 ? (
             'Agotado'
           ) : (
             <>

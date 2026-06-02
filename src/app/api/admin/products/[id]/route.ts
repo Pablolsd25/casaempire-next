@@ -20,6 +20,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     price: raw.price,
     compare_at_price: raw.compare_at_price,
     shipping_cost: raw.shipping_cost,
+    stock: raw.stock ?? 0,
+    manage_stock: raw.manage_stock ?? false,
     category_id: raw.category_id,
     images: raw.images,
     videos: raw.videos,
