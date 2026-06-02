@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Upload, X, Loader2, Plus, Images, Film } from "lucide-react";
@@ -87,6 +87,31 @@ export default function ProductForm({ product, categories }: Props) {
   const [pickVideos, setPickVideos] = useState(false);
   const anyInputRef = useRef<HTMLInputElement>(null); // sube a cualquier slot
   const replaceIdx = useRef<number>(-1); // -1 = añadir, ≥0 = reemplazar
+
+  // ── Options / Variantes ──────────────────────────────────────────────────
+  type OptionDraft = {
+    id?: string;
+    name: string;
+    values: { id?: string; value: string }[];
+    newValue: string;
+  };
+  const [options, setOptions] = useState<OptionDraft[]>([]);
+
+  useEffect(() => {
+    if (!isEdit || !product?.id) return;
+    fetch(`/api/admin/products/${product.id}/options`)
+      .then((r) => r.json())
+      .then(
+        (
+          data: {
+            id: string;
+            name: string;
+            values: { id: string; value: string }[];
+          }[],
+        ) => setOptions(data.map((o) => ({ ...o, newValue: "" }))),
+      )
+      .catch(() => {});
+  }, [isEdit, product?.id]);
 
   // ── Estado ────────────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(false);
@@ -219,6 +244,7 @@ export default function ProductForm({ product, categories }: Props) {
         .map((s) => s.trim())
         .filter(Boolean),
       is_active: form.is_active,
+      is_offer: form.is_offer,
     };
 
     const url = isEdit
@@ -236,10 +262,23 @@ export default function ProductForm({ product, categories }: Props) {
       const data = await res.json().catch(() => ({}));
       setError(data.error ?? "Error al guardar el producto");
       setLoading(false);
-    } else {
-      router.push("/admin/productos");
-      router.refresh();
+      return;
     }
+
+    const saved = await res.json();
+    const productId = isEdit ? product!.id : saved.id;
+    if (productId) {
+      await fetch(`/api/admin/products/${productId}/options`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          options.map((o) => ({ name: o.name, values: o.values })),
+        ),
+      });
+    }
+
+    router.push("/admin/productos");
+    router.refresh();
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -505,11 +544,12 @@ export default function ProductForm({ product, categories }: Props) {
                       setForm((prev) => ({
                         ...prev,
                         is_offer: v,
-                        // Al activar: mueve el precio actual a compare_at_price y limpia price
+                        // Al activar: mueve precio actual a compare_at_price y limpia price
+                        // Al desactivar: restaura el precio original (compare_at_price) como price
                         compare_at_price: v
                           ? prev.compare_at_price || prev.price
                           : "",
-                        price: v ? "" : prev.price,
+                        price: v ? "" : prev.compare_at_price || prev.price,
                       }))
                     }
                   />
@@ -764,6 +804,151 @@ export default function ProductForm({ product, categories }: Props) {
                 </label>
               ))}
             </div>
+          </div>
+
+          {/* — Variantes / Opciones — */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-white font-semibold text-base">Variantes</h2>
+              <button
+                type="button"
+                onClick={() =>
+                  setOptions((prev) => [
+                    ...prev,
+                    { name: "", values: [], newValue: "" },
+                  ])
+                }
+                className="text-accent text-xs font-display uppercase tracking-wider hover:opacity-70 transition-opacity flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" /> Nueva opción
+              </button>
+            </div>
+
+            {options.length === 0 ? (
+              <p className="text-zinc-600 text-sm">
+                Sin variantes. Agrega opciones como sabor, talla, etc.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {options.map((opt, oi) => (
+                  <div
+                    key={oi}
+                    className="border border-zinc-800 rounded-lg p-4 space-y-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={opt.name}
+                        onChange={(e) =>
+                          setOptions((prev) =>
+                            prev.map((o, i) =>
+                              i === oi ? { ...o, name: e.target.value } : o,
+                            ),
+                          )
+                        }
+                        placeholder="Nombre de la opción (ej: Sabor, Talla)"
+                        className="flex-1 bg-zinc-950 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOptions((prev) => prev.filter((_, i) => i !== oi))
+                        }
+                        className="text-zinc-600 hover:text-red-500 transition-colors p-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Values */}
+                    <div className="flex flex-wrap gap-2">
+                      {opt.values.map((v, vi) => (
+                        <span
+                          key={vi}
+                          className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs px-2.5 py-1 rounded-full"
+                        >
+                          {v.value}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOptions((prev) =>
+                                prev.map((o, i) =>
+                                  i === oi
+                                    ? {
+                                        ...o,
+                                        values: o.values.filter(
+                                          (_, j) => j !== vi,
+                                        ),
+                                      }
+                                    : o,
+                                ),
+                              )
+                            }
+                            className="text-zinc-500 hover:text-red-400 transition-colors ml-0.5"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Add value input */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={opt.newValue}
+                        onChange={(e) =>
+                          setOptions((prev) =>
+                            prev.map((o, i) =>
+                              i === oi ? { ...o, newValue: e.target.value } : o,
+                            ),
+                          )
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const val = opt.newValue.trim().toUpperCase();
+                            if (!val) return;
+                            setOptions((prev) =>
+                              prev.map((o, i) =>
+                                i === oi
+                                  ? {
+                                      ...o,
+                                      values: [...o.values, { value: val }],
+                                      newValue: "",
+                                    }
+                                  : o,
+                              ),
+                            );
+                          }
+                        }}
+                        placeholder="Escribe un valor y presiona Enter"
+                        className="flex-1 bg-zinc-950 border border-zinc-700 text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-accent transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = opt.newValue.trim().toUpperCase();
+                          if (!val) return;
+                          setOptions((prev) =>
+                            prev.map((o, i) =>
+                              i === oi
+                                ? {
+                                    ...o,
+                                    values: [...o.values, { value: val }],
+                                    newValue: "",
+                                  }
+                                : o,
+                            ),
+                          );
+                        }}
+                        className="text-accent text-xs border border-accent/30 hover:border-accent px-2 py-1.5 rounded-lg transition-colors"
+                      >
+                        Agregar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* — URL / Slug — */}

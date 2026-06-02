@@ -1,28 +1,20 @@
-import { createClient } from '@/lib/supabase/server'
-import ProductGrid from '@/components/products/ProductGrid'
-import PageHero from '@/components/layout/PageHero'
-import type { Product } from '@/types'
-import type { Metadata } from 'next'
+import { createClient } from "@/lib/supabase/server";
+import ProductGrid from "@/components/products/ProductGrid";
+import PageHero from "@/components/layout/PageHero";
+import type { Product } from "@/types";
+import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: 'Nuestras Ofertas' }
-
-// Slugs de los productos que pertenecen a "Nuestras Ofertas"
-// Actualizar aquí cuando se agreguen o quiten productos de esta sección
-const OFFER_SLUGS = [
-  'pink-kit-mas-piernas-caderas-y-0-abdomen',
-  'peach-super-reductor-gluteos',
-  'extreme-pink-kit',
-]
+export const metadata: Metadata = { title: "Nuestras Ofertas" };
 
 export default async function OfertasPage() {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   const { data: products } = await supabase
-    .from('products')
-    .select('*, category:categories(*)')
-    .eq('is_active', true)
-    .in('slug', OFFER_SLUGS)
-    .order('name')
+    .from("products")
+    .select("*, category:categories(*)")
+    .eq("is_active", true)
+    .eq("is_offer", true)
+    .order("sort_order", { ascending: true });
 
   return (
     <div>
@@ -43,5 +35,5 @@ export default async function OfertasPage() {
         )}
       </div>
     </div>
-  )
+  );
 }

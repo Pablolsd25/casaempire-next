@@ -1,52 +1,65 @@
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import Link from 'next/link'
-import Image from 'next/image'
-import DeleteProductButton from './DeleteProductButton'
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import Link from "next/link";
+import Image from "next/image";
+import DeleteProductButton from "./DeleteProductButton";
 
-export const metadata = { title: 'Productos | Admin' }
+export const metadata = { title: "Productos | Admin" };
 
 export default async function AdminProductos({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; cat?: string; page?: string }>
+  searchParams: Promise<{ q?: string; cat?: string; page?: string }>;
 }) {
-  const { q, cat, page: pageParam } = await searchParams
-  const page = Math.max(1, parseInt(pageParam ?? '1'))
-  const PAGE_SIZE = 20
-  const from = (page - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
+  const { q, cat, page: pageParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam ?? "1"));
+  const PAGE_SIZE = 20;
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
 
   // Auth check
-  const auth = await createClient()
-  await auth.auth.getUser()
+  const auth = await createClient();
+  await auth.auth.getUser();
 
   // Datos con service role — ve TODOS los productos incluyendo inactivos
-  const supabase = createAdminClient()
+  const supabase = createAdminClient();
 
   let query = supabase
-    .from('products')
-    .select('id, name, slug, price, compare_at_price, is_active, images, category:categories(name)', { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range(from, to)
+    .from("products")
+    .select(
+      "id, name, slug, price, compare_at_price, is_active, images, category:categories(name), options:product_options(id, values:product_option_values(id))",
+      { count: "exact" },
+    )
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
-  if (q) query = query.ilike('name', `%${q}%`)
-  if (cat) query = query.eq('category_id', cat)
+  if (q) query = query.ilike("name", `%${q}%`);
+  if (cat) query = query.eq("category_id", cat);
 
-  const { data: products, count } = await query
-  const { data: categories } = await supabase.from('categories').select('id, name').order('name')
+  const { data: products, count } = await query;
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("id, name")
+    .order("name");
 
-  const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE)
+  const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-white font-display font-bold text-3xl uppercase tracking-wide">Productos</h1>
-          <p className="text-zinc-500 text-sm mt-1">{count ?? 0} productos en total</p>
+          <h1 className="text-white font-display font-bold text-3xl uppercase tracking-wide">
+            Productos
+          </h1>
+          <p className="text-zinc-500 text-sm mt-1">
+            {count ?? 0} productos en total
+          </p>
         </div>
-        <Link href="/admin/productos/nuevo" className="btn-accent px-5 py-2.5 rounded text-sm">
+        <Link
+          href="/admin/productos/nuevo"
+          className="btn-accent px-5 py-2.5 rounded text-sm"
+        >
           + Nuevo producto
         </Link>
       </div>
@@ -66,12 +79,19 @@ export default async function AdminProductos({
         >
           <option value="">Todas las categorías</option>
           {(categories ?? []).map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </select>
-        <button type="submit" className="btn-accent px-4 py-2 rounded text-sm">Buscar</button>
+        <button type="submit" className="btn-accent px-4 py-2 rounded text-sm">
+          Buscar
+        </button>
         {(q || cat) && (
-          <Link href="/admin/productos" className="px-4 py-2 text-sm text-zinc-400 hover:text-white border border-zinc-700 rounded transition-colors">
+          <Link
+            href="/admin/productos"
+            className="px-4 py-2 text-sm text-zinc-400 hover:text-white border border-zinc-700 rounded transition-colors"
+          >
             Limpiar
           </Link>
         )}
@@ -79,28 +99,56 @@ export default async function AdminProductos({
 
       {/* Tabla */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-
         {/* Mobile cards */}
         <div className="md:hidden divide-y divide-zinc-800">
           {(products ?? []).map((p) => {
-            const cat = (p.category as unknown) as { name: string } | null
+            const cat = p.category as unknown as { name: string } | null;
             return (
               <div key={p.id} className="flex items-center gap-3 px-4 py-3">
                 {/* Thumbnail */}
                 {p.images?.[0] ? (
                   <div className="w-14 h-14 rounded overflow-hidden bg-zinc-800 flex-shrink-0 relative">
-                    <Image src={p.images[0]} alt={p.name} fill className="object-contain" />
+                    <Image
+                      src={p.images[0]}
+                      alt={p.name}
+                      fill
+                      className="object-contain"
+                    />
                   </div>
                 ) : (
                   <div className="w-14 h-14 rounded bg-zinc-800 flex-shrink-0" />
                 )}
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium text-sm truncate">{p.name}</p>
-                  <p className="text-zinc-500 text-xs">{cat?.name ?? '—'} · ${Number(p.price).toLocaleString('es-MX')}</p>
+                  <p className="text-white font-medium text-sm truncate">
+                    {p.name}
+                  </p>
+                  {(() => {
+                    const opts =
+                      (
+                        p as unknown as {
+                          options?: { values?: { id: string }[] }[];
+                        }
+                      ).options ?? [];
+                    const total = opts.reduce(
+                      (s, o) => s + (o.values?.length ?? 0),
+                      0,
+                    );
+                    return total > 0 ? (
+                      <p className="text-accent text-xs font-medium">
+                        {total} variantes
+                      </p>
+                    ) : null;
+                  })()}
+                  <p className="text-zinc-500 text-xs">
+                    {cat?.name ?? "—"} · $
+                    {Number(p.price).toLocaleString("es-MX")}
+                  </p>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${p.is_active ? 'bg-green-500/20 text-green-400' : 'bg-zinc-700 text-zinc-400'}`}>
-                      {p.is_active ? 'Activo' : 'Oculto'}
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-xs font-medium ${p.is_active ? "bg-green-500/20 text-green-400" : "bg-zinc-700 text-zinc-400"}`}
+                    >
+                      {p.is_active ? "Activo" : "Oculto"}
                     </span>
                   </div>
                 </div>
@@ -121,10 +169,12 @@ export default async function AdminProductos({
                   </Link>
                 </div>
               </div>
-            )
+            );
           })}
           {(products ?? []).length === 0 && (
-            <p className="py-12 text-center text-zinc-600 text-sm">No se encontraron productos</p>
+            <p className="py-12 text-center text-zinc-600 text-sm">
+              No se encontraron productos
+            </p>
           )}
         </div>
 
@@ -142,38 +192,73 @@ export default async function AdminProductos({
             </thead>
             <tbody className="divide-y divide-zinc-800">
               {(products ?? []).map((p) => {
-                const cat = (p.category as unknown) as { name: string } | null
+                const cat = p.category as unknown as { name: string } | null;
                 return (
-                  <tr key={p.id} className="hover:bg-zinc-800/40 transition-colors">
+                  <tr
+                    key={p.id}
+                    className="hover:bg-zinc-800/40 transition-colors"
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         {p.images?.[0] ? (
                           <div className="w-10 h-10 rounded overflow-hidden bg-zinc-800 flex-shrink-0 relative">
-                            <Image src={p.images[0]} alt={p.name} fill className="object-contain" />
+                            <Image
+                              src={p.images[0]}
+                              alt={p.name}
+                              fill
+                              className="object-contain"
+                            />
                           </div>
                         ) : (
                           <div className="w-10 h-10 rounded bg-zinc-800 flex-shrink-0" />
                         )}
                         <div>
-                          <p className="text-white font-medium truncate max-w-[220px]">{p.name}</p>
-                          <p className="text-zinc-600 text-xs">{p.slug}</p>
+                          <p className="text-white font-medium truncate max-w-[220px]">
+                            {p.name}
+                          </p>
+                          {(() => {
+                            const opts =
+                              (
+                                p as unknown as {
+                                  options?: { values?: { id: string }[] }[];
+                                }
+                              ).options ?? [];
+                            const total = opts.reduce(
+                              (s, o) => s + (o.values?.length ?? 0),
+                              0,
+                            );
+                            return total > 0 ? (
+                              <p className="text-accent text-xs font-medium">
+                                {total} variantes
+                              </p>
+                            ) : (
+                              <p className="text-zinc-600 text-xs">{p.slug}</p>
+                            );
+                          })()}
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-zinc-400">{cat?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-zinc-400">
+                      {cat?.name ?? "—"}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <div>
-                        <span className="text-white font-medium">${Number(p.price).toLocaleString('es-MX')}</span>
+                        <span className="text-white font-medium">
+                          ${Number(p.price).toLocaleString("es-MX")}
+                        </span>
                         {p.compare_at_price && (
                           <span className="text-zinc-600 text-xs line-through block">
-                            ${Number(p.compare_at_price).toLocaleString('es-MX')}
+                            $
+                            {Number(p.compare_at_price).toLocaleString("es-MX")}
                           </span>
                         )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${p.is_active ? 'bg-green-500/20 text-green-400' : 'bg-zinc-700 text-zinc-400'}`}>
-                        {p.is_active ? 'Activo' : 'Oculto'}
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs font-medium ${p.is_active ? "bg-green-500/20 text-green-400" : "bg-zinc-700 text-zinc-400"}`}
+                      >
+                        {p.is_active ? "Activo" : "Oculto"}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -195,7 +280,7 @@ export default async function AdminProductos({
                       </div>
                     </td>
                   </tr>
-                )
+                );
               })}
               {(products ?? []).length === 0 && (
                 <tr>
@@ -211,17 +296,23 @@ export default async function AdminProductos({
         {/* Paginación */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-800">
-            <p className="text-zinc-500 text-xs">Página {page} de {totalPages}</p>
+            <p className="text-zinc-500 text-xs">
+              Página {page} de {totalPages}
+            </p>
             <div className="flex gap-2">
               {page > 1 && (
-                <Link href={`/admin/productos?page=${page - 1}${q ? `&q=${q}` : ''}${cat ? `&cat=${cat}` : ''}`}
-                  className="px-3 py-1 text-xs border border-zinc-700 text-zinc-400 hover:text-white rounded transition-colors">
+                <Link
+                  href={`/admin/productos?page=${page - 1}${q ? `&q=${q}` : ""}${cat ? `&cat=${cat}` : ""}`}
+                  className="px-3 py-1 text-xs border border-zinc-700 text-zinc-400 hover:text-white rounded transition-colors"
+                >
                   ← Anterior
                 </Link>
               )}
               {page < totalPages && (
-                <Link href={`/admin/productos?page=${page + 1}${q ? `&q=${q}` : ''}${cat ? `&cat=${cat}` : ''}`}
-                  className="px-3 py-1 text-xs border border-zinc-700 text-zinc-400 hover:text-white rounded transition-colors">
+                <Link
+                  href={`/admin/productos?page=${page + 1}${q ? `&q=${q}` : ""}${cat ? `&cat=${cat}` : ""}`}
+                  className="px-3 py-1 text-xs border border-zinc-700 text-zinc-400 hover:text-white rounded transition-colors"
+                >
                   Siguiente →
                 </Link>
               )}
@@ -230,5 +321,5 @@ export default async function AdminProductos({
         )}
       </div>
     </div>
-  )
+  );
 }

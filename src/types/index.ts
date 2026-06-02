@@ -97,9 +97,27 @@ export interface BlogPost {
   created_at: string
 }
 
+export interface ProductOptionValue {
+  id: string
+  option_id: string
+  value: string
+  sort_order: number
+}
+
+export interface ProductOption {
+  id: string
+  product_id: string
+  name: string
+  sort_order: number
+  values: ProductOptionValue[]
+}
+
 export interface CartItem {
   product: Product
   quantity: number
+  /** Stable key: product.id + selected options (allows same product, diff variant) */
+  cartKey: string
+  selectedOptions?: Record<string, string>
 }
 
 export type CouponType = 'percentage' | 'fixed' | 'free_shipping'

@@ -5,14 +5,20 @@ import { persist } from 'zustand/middleware'
 import type { CartItem, Product, AppliedCoupon } from '@/types'
 import { SHIPPING_COST } from '@/lib/constants'
 
+function makeCartKey(productId: string, selectedOptions?: Record<string, string>): string {
+  if (!selectedOptions || Object.keys(selectedOptions).length === 0) return productId
+  const sorted = Object.entries(selectedOptions).sort(([a], [b]) => a.localeCompare(b))
+  return `${productId}__${sorted.map(([k, v]) => `${k}:${v}`).join('|')}`
+}
+
 interface CartStore {
   items: CartItem[]
   isOpen: boolean
   coupon: AppliedCoupon | null
   shippingCost: number
-  addItem: (product: Product, quantity?: number) => void
-  removeItem: (productId: string) => void
-  updateQuantity: (productId: string, quantity: number) => void
+  addItem: (product: Product, quantity?: number, selectedOptions?: Record<string, string>) => void
+  removeItem: (cartKey: string) => void
+  updateQuantity: (cartKey: string, quantity: number) => void
   clearCart: () => void
   openCart: () => void
   closeCart: () => void
@@ -35,36 +41,35 @@ export const useCartStore = create<CartStore>()(
       coupon: null,
       shippingCost: SHIPPING_COST,
 
-      addItem: (product, quantity = 1) => {
+      addItem: (product, quantity = 1, selectedOptions) => {
+        const key = makeCartKey(product.id, selectedOptions)
         const items = get().items
-        const existing = items.find((i) => i.product.id === product.id)
+        const existing = items.find((i) => i.cartKey === key)
 
         if (existing) {
           set({
             items: items.map((i) =>
-              i.product.id === product.id
-                ? { ...i, quantity: i.quantity + quantity }
-                : i
+              i.cartKey === key ? { ...i, quantity: i.quantity + quantity } : i
             ),
           })
         } else {
-          set({ items: [...items, { product, quantity }] })
+          set({ items: [...items, { product, quantity, cartKey: key, selectedOptions }] })
         }
         set({ isOpen: true })
       },
 
-      removeItem: (productId) => {
-        set({ items: get().items.filter((i) => i.product.id !== productId) })
+      removeItem: (cartKey) => {
+        set({ items: get().items.filter((i) => i.cartKey !== cartKey) })
       },
 
-      updateQuantity: (productId, quantity) => {
+      updateQuantity: (cartKey, quantity) => {
         if (quantity <= 0) {
-          get().removeItem(productId)
+          get().removeItem(cartKey)
           return
         }
         set({
           items: get().items.map((i) =>
-            i.product.id === productId ? { ...i, quantity } : i
+            i.cartKey === cartKey ? { ...i, quantity } : i
           ),
         })
       },
@@ -90,7 +95,7 @@ export const useCartStore = create<CartStore>()(
         if (!c) return 0
         const sub = get().subtotal()
         if (c.type === 'percentage') return Math.round(sub * (c.value / 100) * 100) / 100
-        if (c.type === 'fixed')      return Math.min(c.value, sub)
+        if (c.type === 'fixed') return Math.min(c.value, sub)
         return 0 // free_shipping no descuenta del subtotal
       },
 

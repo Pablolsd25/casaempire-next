@@ -25,6 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     videos: raw.videos,
     tags: raw.tags,
     is_active: raw.is_active,
+    is_offer: raw.is_offer,
     sort_order: raw.sort_order,
   }
 
