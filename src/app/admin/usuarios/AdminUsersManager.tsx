@@ -5,7 +5,6 @@ import { Loader2, Trash2, UserPlus } from 'lucide-react'
 
 type AdminRow = {
   email: string
-  protected: boolean
   isSelf: boolean
   userId: string | null
 }
@@ -70,7 +69,7 @@ export default function AdminUsersManager() {
   }
 
   const handleDelete = async (row: AdminRow) => {
-    if (row.protected || row.isSelf) return
+    if (row.isSelf) return
     if (
       !confirm(
         `¿Eliminar a ${row.email}?\nPerderá acceso al panel y se borrará su cuenta de acceso.`
@@ -191,25 +190,14 @@ export default function AdminUsersManager() {
                         Tú
                       </span>
                     )}
-                    {row.protected && (
-                      <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-                        Protegido
-                      </span>
-                    )}
                   </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => handleDelete(row)}
-                  disabled={row.protected || row.isSelf || deletingEmail === row.email}
-                  title={
-                    row.protected
-                      ? 'Configurado en el servidor'
-                      : row.isSelf
-                        ? 'No puedes eliminarte'
-                        : 'Eliminar'
-                  }
+                  disabled={row.isSelf || deletingEmail === row.email}
+                  title={row.isSelf ? 'No puedes eliminarte' : 'Eliminar'}
                   className="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10
                     disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
@@ -226,8 +214,7 @@ export default function AdminUsersManager() {
       </div>
 
       <p className="text-zinc-600 text-xs">
-        Los correos marcados como &quot;Protegido&quot; vienen de la variable{' '}
-        <code className="text-zinc-500">ADMIN_EMAILS</code> del servidor y no se pueden eliminar desde aquí.
+        Todos los administradores se gestionan aquí. No hace falta configurar variables de entorno en Vercel.
       </p>
     </div>
   )

@@ -4,15 +4,22 @@ import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
+const ACCESS_ERRORS: Record<string, string> = {
+  no_access:
+    'Tu cuenta no tiene permiso de administrador. Si deberías tener acceso, contacta al soporte técnico.',
+  session: 'La sesión expiró. Vuelve a iniciar sesión.',
+}
+
 function LoginForm() {
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get('redirect') ?? '/admin'
   const redirect = `/api/auth/post-login?redirect=${encodeURIComponent(redirectParam)}`
+  const accessError = ACCESS_ERRORS[searchParams.get('error') ?? '']
 
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState('')
+  const [error, setError]       = useState(accessError)
 
   const supabase = createClient()
 
@@ -34,7 +41,11 @@ function LoginForm() {
           <p className="text-white font-bold text-2xl tracking-widest uppercase">
             Casa Empire
           </p>
-          <p className="text-zinc-400 mt-2 text-sm">Panel de administración</p>
+          <p className="text-zinc-400 mt-2 text-sm">
+            {redirectParam.startsWith('/admin')
+              ? 'Panel de administración'
+              : 'Inicia sesión en tu cuenta'}
+          </p>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8">

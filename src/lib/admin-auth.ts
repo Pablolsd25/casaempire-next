@@ -9,14 +9,6 @@ export function normalizeAdminEmail(email: string): string {
   return email.trim().toLowerCase()
 }
 
-/** Emails definidos en ADMIN_EMAILS (siempre tienen acceso; no se pueden quitar desde el panel) */
-export function getEnvAdminEmails(): string[] {
-  return (process.env.ADMIN_EMAILS ?? '')
-    .split(',')
-    .map(normalizeAdminEmail)
-    .filter(Boolean)
-}
-
 export async function getStoredAdminEmails(
   supabase: SupabaseClient
 ): Promise<string[]> {
@@ -40,23 +32,17 @@ export async function getStoredAdminEmails(
   }
 }
 
-/** Lista efectiva: variables de entorno + administradores guardados en BD */
+/** Administradores autorizados — solo desde la base de datos (panel Usuarios) */
 export async function getAdminEmails(
   supabase?: SupabaseClient
 ): Promise<string[]> {
   const client = supabase ?? createAdminClient()
-  const stored = await getStoredAdminEmails(client)
-  const env = getEnvAdminEmails()
-  return [...new Set([...env, ...stored])]
+  return getStoredAdminEmails(client)
 }
 
 export function isAdminEmail(email: string, adminEmails: string[]): boolean {
   const normalized = normalizeAdminEmail(email)
   return adminEmails.some((e) => e === normalized)
-}
-
-export function isProtectedEnvAdmin(email: string): boolean {
-  return isAdminEmail(email, getEnvAdminEmails())
 }
 
 export async function saveStoredAdminEmails(
@@ -78,7 +64,6 @@ export async function getSessionUser(): Promise<User | null> {
   return user
 }
 
-/** Para API routes: null si autorizado, NextResponse si no */
 /** Usuario de sesión solo si es administrador */
 export async function getAdminUser(): Promise<User | null> {
   const user = await getSessionUser()

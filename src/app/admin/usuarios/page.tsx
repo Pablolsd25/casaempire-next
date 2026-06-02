@@ -10,7 +10,7 @@ export default function AdminUsuariosPage() {
           Usuarios
         </h1>
         <p className="text-zinc-500 text-sm mt-1">
-          Administradores con acceso al panel. Agrega o elimina cuentas desde aquí.
+          Solo personal del panel admin. Agrega o elimina cuentas aquí — sin variables de entorno.
         </p>
       </div>
       <AdminUsersManager />

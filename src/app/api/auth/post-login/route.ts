@@ -3,26 +3,41 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminEmails, isAdminEmail } from '@/lib/admin-auth'
 
+function safeRedirectPath(path: string | null): string {
+  if (!path || !path.startsWith('/') || path.startsWith('//')) return '/admin'
+  return path
+}
+
+function requiresAdminAccess(path: string): boolean {
+  return path === '/admin' || path.startsWith('/admin/')
+}
+
 // GET /api/auth/post-login?redirect=/admin
-// Redirige a /admin si el usuario es admin, o a /login si no.
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   const { searchParams, origin } = request.nextUrl
-  const fallback = searchParams.get('redirect') ?? '/admin'
+  const destination = safeRedirectPath(searchParams.get('redirect'))
 
   if (!user) {
-    return NextResponse.redirect(new URL('/login', origin))
+    const login = new URL('/login', origin)
+    login.searchParams.set('redirect', destination)
+    login.searchParams.set('error', 'session')
+    return NextResponse.redirect(login)
   }
 
-  const adminEmails = await getAdminEmails(createAdminClient())
+  if (requiresAdminAccess(destination)) {
+    const adminEmails = await getAdminEmails(createAdminClient())
 
-  if (!isAdminEmail(user.email ?? '', adminEmails)) {
-    // No es admin — cerrar sesión y redirigir a login
-    await supabase.auth.signOut()
-    return NextResponse.redirect(new URL('/login', origin))
+    if (!isAdminEmail(user.email ?? '', adminEmails)) {
+      await supabase.auth.signOut()
+      const login = new URL('/login', origin)
+      login.searchParams.set('redirect', destination)
+      login.searchParams.set('error', 'no_access')
+      return NextResponse.redirect(login)
+    }
   }
 
-  return NextResponse.redirect(new URL(fallback, origin))
+  return NextResponse.redirect(new URL(destination, origin))
 }

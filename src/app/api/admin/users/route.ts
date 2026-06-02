@@ -3,11 +3,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import {
   checkAdminAccess,
   getAdminEmails,
-  getEnvAdminEmails,
   getSessionUser,
   getStoredAdminEmails,
   isAdminEmail,
-  isProtectedEnvAdmin,
   normalizeAdminEmail,
   saveStoredAdminEmails,
 } from '@/lib/admin-auth'
@@ -44,13 +42,11 @@ export async function GET() {
   const user = await getSessionUser()
   const admin = createAdminClient()
   const allEmails = await getAdminEmails(admin)
-  const envEmails = new Set(getEnvAdminEmails())
   const current = normalizeAdminEmail(user?.email ?? '')
 
   const admins = await Promise.all(
     allEmails.map(async (email) => ({
       email,
-      protected: envEmails.has(email),
       isSelf: email === current,
       userId: await findAuthUserIdByEmail(admin, email),
     }))
@@ -123,13 +119,6 @@ export async function DELETE(req: NextRequest) {
   const email = normalizeAdminEmail(body.email ?? '')
   if (!email) {
     return NextResponse.json({ error: 'Correo requerido.' }, { status: 400 })
-  }
-
-  if (isProtectedEnvAdmin(email)) {
-    return NextResponse.json(
-      { error: 'Este administrador está protegido (configurado en el servidor).' },
-      { status: 403 }
-    )
   }
 
   const sessionUser = await getSessionUser()
