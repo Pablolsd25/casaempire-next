@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkAdminAccess } from '@/lib/admin-auth'
 
 const OPENPAY_API = process.env.NEXT_PUBLIC_OPENPAY_SANDBOX === 'true'
   ? 'https://sandbox-api.openpay.mx/v1'
@@ -17,16 +17,8 @@ function authHeader() {
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-
-  const adminEmails = (process.env.ADMIN_EMAILS ?? '')
-    .split(',').map((e) => e.trim()).filter(Boolean)
-  if (adminEmails.length > 0 && !adminEmails.includes(user.email ?? '')) {
-    return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-  }
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
   const supabase = createAdminClient()
 

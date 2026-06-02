@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getHomePageVideos } from "@/lib/home-video";
 import ProductGrid from "@/components/products/ProductGrid";
 import VideoHero from "@/components/home/VideoHero";
 import VideoShowcase from "@/components/home/VideoShowcase";
@@ -8,6 +10,8 @@ import type { Product } from "@/types";
 
 export default async function HomePage() {
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
+  const homeVideos = await getHomePageVideos(adminSupabase);
 
   const WOMENS_CAT = "ce1d4d02-1d13-451a-a163-2acd8e4dceef";
   const MENS_CAT = "fa7a76af-6241-49c2-a849-65eea9a710f1";
@@ -34,7 +38,10 @@ export default async function HomePage() {
   return (
     <div>
       {/* Hero — Video intro Empire Nutrition */}
-      <VideoHero />
+      <VideoHero video480={homeVideos.video480} video1080={homeVideos.video1080} />
+
+      {/* Video promocional — antes de categorías */}
+      <VideoShowcase videoUrl={homeVideos.showcaseVideo} />
 
       {/* Categorías */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -167,9 +174,6 @@ export default async function HomePage() {
 
       {/* Quiénes somos */}
       <AboutSection />
-
-      {/* Video showcase — WEB HD */}
-      <VideoShowcase />
 
       {/* Ventajas */}
       <section className="border-t border-zinc-900 bg-zinc-950">

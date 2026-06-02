@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkAdminAccess } from '@/lib/admin-auth'
 
 // PUT /api/admin/blog/[id] — actualizar artículo completo
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
-  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim())
-  if (!adminEmails.includes(user.email ?? ''))
-    return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+  const { id } = await params
 
   const body = await req.json()
   const supabase = createAdminClient()
@@ -41,11 +37,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 // PATCH /api/admin/blog/[id] — toggle publicado
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
+  const { id } = await params
   const supabase = createAdminClient()
   const body = await req.json()
   const update: Record<string, unknown> = { is_published: body.is_published }
@@ -64,11 +59,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 // DELETE /api/admin/blog/[id]
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
+  const { id } = await params
   const supabase = createAdminClient()
   const { error } = await supabase.from('blog_posts').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })

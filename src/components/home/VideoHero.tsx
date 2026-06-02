@@ -2,8 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
+import { DEFAULT_HOME_VIDEO_POSTER, type HomeVideoSettings } from "@/lib/home-video";
 
-export default function VideoHero() {
+type Props = HomeVideoSettings & { poster?: string };
+
+export default function VideoHero({ video480, video1080, poster = DEFAULT_HOME_VIDEO_POSTER }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -23,12 +26,10 @@ export default function VideoHero() {
         loop
         playsInline
         preload="auto"
-        poster="https://static.wixstatic.com/media/d60565_a92a4ba089fb4a6d8e4893b90cef9183f001.jpg/v1/fill/w_1920,h_419,al_c,q_85/d60565_a92a4ba089fb4a6d8e4893b90cef9183f001.jpg"
+        poster={poster}
       >
-        <source
-          src="https://video.wixstatic.com/video/d60565_a92a4ba089fb4a6d8e4893b90cef9183/720p/mp4/file.mp4"
-          type="video/mp4"
-        />
+        <source src={video1080} type="video/mp4" media="(min-width: 768px)" />
+        <source src={video480} type="video/mp4" />
       </video>
 
       {/* Gradiente */}

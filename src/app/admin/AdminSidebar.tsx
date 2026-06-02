@@ -69,6 +69,15 @@ function IconStore() {
     </svg>
   )
 }
+function IconLogOut() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  )
+}
 function IconTicket() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -141,6 +150,7 @@ const NAV_SECTIONS = [
       { href: '/admin/blog',          label: 'Blog',          Icon: IconPen      },
       { href: '/admin/mensajes',      label: 'Mensajes',      Icon: IconMail     },
       { href: '/admin/resenas',       label: 'Reseñas',       Icon: IconStar     },
+      { href: '/admin/usuarios',       label: 'Usuarios',       Icon: IconUser     },
       { href: '/admin/configuracion', label: 'Configuración', Icon: IconSettings },
     ],
   },
@@ -258,6 +268,16 @@ export default function AdminSidebar({
           <IconStore />
           <span>Ver tienda</span>
         </Link>
+        <form action="/api/auth/signout" method="POST">
+          <button
+            type="submit"
+            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs text-zinc-500
+              hover:text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            <IconLogOut />
+            <span>Cerrar sesión</span>
+          </button>
+        </form>
       </div>
     </div>
   )

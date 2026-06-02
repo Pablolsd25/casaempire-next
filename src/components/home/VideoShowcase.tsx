@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-export default function VideoShowcase() {
+type Props = { videoUrl: string };
+
+export default function VideoShowcase({ videoUrl }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
 
@@ -80,10 +82,7 @@ export default function VideoShowcase() {
             loop
             playsInline
           >
-            <source
-              src="https://video.wixstatic.com/video/5cd3e7_a1bdec1e652044e2bae0b70b3d022289/720p/mp4/file.mp4"
-              type="video/mp4"
-            />
+            <source src={videoUrl} type="video/mp4" />
           </video>
 
           {/* Indicador de audio */}

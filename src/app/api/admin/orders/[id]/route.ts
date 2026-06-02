@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getAdminUser } from '@/lib/admin-auth'
 import { sendShippingNotification } from '@/lib/email/templates'
-
-async function getAdminUser() {
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return null
-
-  const adminEmails = (process.env.ADMIN_EMAILS ?? '')
-    .split(',').map((e) => e.trim()).filter(Boolean)
-
-  if (adminEmails.length > 0 && !adminEmails.includes(user.email ?? '')) return null
-  return user
-}
 
 // PATCH /api/admin/orders/[id] — actualizar status o tracking_number
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
-
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim()).filter(Boolean)
+import { checkAdminAccess } from '@/lib/admin-auth'
 
 /** POST /api/admin/settings — actualiza una clave en site_settings (solo admins) */
 export async function POST(req: NextRequest) {
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-
-  if (!user || !ADMIN_EMAILS.includes(user.email ?? '')) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-  }
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
   let body: { key?: string; value?: unknown }
   try {

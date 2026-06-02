@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getAdminEmails, isAdminEmail } from '@/lib/admin-auth'
 import AdminSidebar from './AdminSidebar'
 
 export const metadata = { title: 'Panel Admin | Empire Nutrition' }
@@ -13,13 +14,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect('/login?redirect=/admin')
   }
 
-  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim()).filter(Boolean)
-  if (!adminEmails.includes(user.email ?? '')) {
+  const admin = createAdminClient()
+  const adminEmails = await getAdminEmails(admin)
+  if (!isAdminEmail(user.email ?? '', adminEmails)) {
     redirect('/?error=no_access')
   }
 
   // Contar mensajes sin leer para el badge del sidebar
-  const admin = createAdminClient()
   const { count: unreadMessages } = await admin
     .from('contact_submissions')
     .select('*', { count: 'exact', head: true })

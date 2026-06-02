@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkAdminAccess } from '@/lib/admin-auth'
 
 // POST /api/admin/blog — crear nuevo artículo
 export async function POST(req: NextRequest) {
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-
-  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim())
-  if (!adminEmails.includes(user.email ?? ''))
-    return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
   const body = await req.json()
   const supabase = createAdminClient()
