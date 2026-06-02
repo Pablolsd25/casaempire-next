@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -10,6 +10,7 @@ import { getOpenPayTokenError } from '@/lib/openpay-errors'
 import CheckoutFailedSummary, {
   type FailedCheckoutSnapshot,
 } from '@/components/checkout/CheckoutFailedSummary'
+import { saveLastOrder } from '@/lib/checkout-session'
 
 declare global {
   interface Window {
@@ -145,6 +146,8 @@ export default function CheckoutPage() {
   // Si el usuario intenta pagar dos veces con el mismo intento, el backend
   // detecta la clave duplicada y retorna la orden existente sin volver a cobrar.
   const [idempotencyKey] = useState(() => crypto.randomUUID())
+  /** Evita redirigir a /carrito cuando vaciamos el carrito tras pago exitoso */
+  const completingCheckout = useRef(false)
 
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '',
@@ -153,9 +156,11 @@ export default function CheckoutPage() {
     cardNumber: '', cardExpMonth: '', cardExpYear: '', cardCvv: '', cardName: '',
   })
 
-  // Redirigir si el carrito está vacío (excepto pantalla de pago fallido)
+  // Redirigir si el carrito está vacío (no durante confirmación ni pantalla de fallo)
   useEffect(() => {
-    if (items.length === 0 && !paymentFailed) router.replace('/carrito')
+    if (items.length === 0 && !paymentFailed && !completingCheckout.current) {
+      router.replace('/carrito')
+    }
   }, [items.length, paymentFailed, router])
 
   // Cargar OpenPay.js + openpay-data.js (antifraude)
@@ -367,10 +372,20 @@ export default function CheckoutPage() {
             return
           }
 
+          if (!data.orderId) {
+            setError('No se recibió el número de orden. Contacta soporte con tu comprobante.')
+            setLoading(false)
+            return
+          }
+
+          completingCheckout.current = true
+          saveLastOrder(data.orderId, form.email)
+
+          const params = new URLSearchParams({ confirmed: '1' })
+          if (data.status === 'pending') params.set('status', 'pending')
+
           clearCart()
-          // Pasar el status en la URL para que la página de orden muestre el banner correcto
-          const statusParam = data.status === 'pending' ? '?status=pending' : ''
-          router.push(`/orden/${data.orderId}${statusParam}`)
+          router.replace(`/orden/${data.orderId}?${params.toString()}`)
         } catch {
           setError('Error de conexión. Verifica tu internet e intenta de nuevo.')
           setLoading(false)
@@ -562,39 +577,80 @@ export default function CheckoutPage() {
 
             {/* Tarjetas de prueba — solo en sandbox */}
             {isSandbox && (
-              <div className="mb-5 bg-zinc-800 border border-zinc-600 rounded-lg p-4 text-xs space-y-2">
-                <p className="text-accent font-semibold uppercase tracking-wide mb-2">Modo sandbox — tarjetas de prueba</p>
-                <div className="space-y-1.5 text-zinc-400">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+              <div className="mb-5 bg-zinc-800 border border-zinc-600 rounded-lg p-4 text-xs space-y-3">
+                <p className="text-accent font-semibold uppercase tracking-wide">
+                  Modo sandbox — tarjetas de prueba (OpenPay)
+                </p>
+                <p className="text-zinc-500">
+                  Fecha: cualquier mes/año <strong className="text-zinc-400">futuro</strong> · CVV: 3 dígitos
+                  (Visa/MC) o 4 (Amex) · Nombre: cualquiera
+                </p>
+                <div>
+                  <p className="text-zinc-400 font-medium mb-2">Cargos exitosos</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-zinc-400">
                     <div>
-                      <span className="text-zinc-500">Aprobada (Visa)</span><br />
+                      <span className="text-zinc-500">Visa · Banamex</span>
+                      <br />
                       <span className="text-white font-mono">4111 1111 1111 1111</span>
                     </div>
                     <div>
-                      <span className="text-zinc-500">Aprobada (MC)</span><br />
-                      <span className="text-white font-mono">5500 0000 0000 0004</span>
+                      <span className="text-zinc-500">Mastercard · Santander</span>
+                      <br />
+                      <span className="text-white font-mono">5555 5555 5555 4444</span>
                     </div>
                     <div>
-                      <span className="text-zinc-500">Rechazada — código 3001</span><br />
-                      <span className="text-white font-mono">4000 0000 0000 0002</span>
+                      <span className="text-zinc-500">Mastercard · Scotiabank</span>
+                      <br />
+                      <span className="text-white font-mono">5105 1051 0510 5100</span>
                     </div>
                     <div>
-                      <span className="text-zinc-500">Fondos insuficientes — 3003</span><br />
-                      <span className="text-white font-mono">4000 0000 0000 0028</span>
+                      <span className="text-zinc-500">Amex</span>
+                      <br />
+                      <span className="text-white font-mono">3456 780000 00007</span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-zinc-400 font-medium mb-2">Errores simulados (mensaje genérico al cliente)</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-zinc-400">
+                    <div>
+                      <span className="text-zinc-500">Rechazada · 3001</span>
+                      <br />
+                      <span className="text-white font-mono">4222 2222 2222 2220</span>
                     </div>
                     <div>
-                      <span className="text-zinc-500">Tarjeta robada — 3004</span><br />
-                      <span className="text-white font-mono">4000 0000 0000 0036</span>
+                      <span className="text-zinc-500">Expirada · 3002</span>
+                      <br />
+                      <span className="text-white font-mono">4000 0000 0000 0069</span>
                     </div>
                     <div>
-                      <span className="text-zinc-500">Sin transacc. en línea — 3008</span><br />
+                      <span className="text-zinc-500">Sin fondos · 3003</span>
+                      <br />
+                      <span className="text-white font-mono">4444 4444 4444 4448</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500">Robada · 3004</span>
+                      <br />
+                      <span className="text-white font-mono">4000 0000 0000 0119</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500">Antifraude · 3005</span>
+                      <br />
                       <span className="text-white font-mono">4000 0000 0000 0044</span>
                     </div>
                   </div>
-                  <p className="text-zinc-500 mt-1 pt-1 border-t border-zinc-700">
-                    Fecha: cualquier mes/año futuro · CVV: cualquier 3 dígitos · Nombre: cualquiera
-                  </p>
                 </div>
+                <p className="text-zinc-600 text-[11px] pt-1 border-t border-zinc-700">
+                  Referencia:{' '}
+                  <a
+                    href="https://documents.openpay.mx/docs/testing"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent hover:underline"
+                  >
+                    documents.openpay.mx/docs/testing
+                  </a>
+                </p>
               </div>
             )}
 

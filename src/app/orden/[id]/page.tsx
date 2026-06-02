@@ -5,6 +5,7 @@ import type { Order } from '@/types'
 import type { Metadata } from 'next'
 import OrderTimeline from './OrderTimeline'
 import AutoRefresh from './AutoRefresh'
+import OrderConfirmedNotice from './OrderConfirmedNotice'
 
 export const metadata: Metadata = { title: 'Detalle de orden' }
 
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic'
 
 interface Props {
   params:      Promise<{ id: string }>
-  searchParams: Promise<{ status?: string }>
+  searchParams: Promise<{ status?: string; confirmed?: string }>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -116,7 +117,8 @@ function StatusBanner({ status }: { status: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default async function OrdenPage({ params, searchParams }: Props) {
   const { id }     = await params
-  const { status: qStatus } = await searchParams
+  const { status: qStatus, confirmed: qConfirmed } = await searchParams
+  const justConfirmed = qConfirmed === '1'
 
   const supabase   = createAdminClient()
 
@@ -169,6 +171,10 @@ export default async function OrdenPage({ params, searchParams }: Props) {
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 text-center">
 
       <StatusBanner status={displayStatus} />
+
+      {justConfirmed && (displayStatus === 'paid' || displayStatus === 'pending') && (
+        <OrderConfirmedNotice orderId={o.id} email={o.customer_email} />
+      )}
 
       <AutoRefresh status={displayStatus} />
 
@@ -247,15 +253,12 @@ export default async function OrdenPage({ params, searchParams }: Props) {
         <Link href="/tienda" className="bg-white text-black font-semibold px-8 py-3 rounded-lg hover:bg-zinc-200 transition-colors">
           Seguir comprando
         </Link>
-        {user ? (
-          <Link href="/admin/ordenes" className="border border-zinc-600 text-white font-semibold px-8 py-3 rounded-lg hover:border-zinc-400 transition-colors">
-            Panel de órdenes
-          </Link>
-        ) : (
-          <Link href="/mis-pedidos" className="border border-zinc-600 text-white font-semibold px-8 py-3 rounded-lg hover:border-zinc-400 transition-colors">
-            Buscar mi pedido
-          </Link>
-        )}
+        <Link
+          href={user ? '/cuenta/ordenes' : '/mis-pedidos'}
+          className="border border-zinc-600 text-white font-semibold px-8 py-3 rounded-lg hover:border-zinc-400 transition-colors"
+        >
+          {user ? 'Ver todos mis pedidos' : 'Mis pedidos'}
+        </Link>
         {displayStatus === 'pending' && (
           <a href="https://wa.me/525571527659" target="_blank" rel="noopener noreferrer"
             className="border border-green-700 text-green-400 font-semibold px-8 py-3 rounded-lg hover:border-green-500 transition-colors">

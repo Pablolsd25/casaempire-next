@@ -21,6 +21,8 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const ordersHref = loggedIn ? "/cuenta/ordenes" : "/mis-pedidos";
   const { toggleCart, itemCount } = useCartStore();
   const count = itemCount();
 
@@ -31,8 +33,14 @@ export default function Header() {
   useEffect(() => {
     fetch("/api/auth/me")
       .then((r) => r.json())
-      .then((data: { isAdmin?: boolean }) => setIsAdmin(!!data.isAdmin))
-      .catch(() => setIsAdmin(false));
+      .then((data: { isAdmin?: boolean; loggedIn?: boolean }) => {
+        setIsAdmin(!!data.isAdmin);
+        setLoggedIn(!!data.loggedIn);
+      })
+      .catch(() => {
+        setIsAdmin(false);
+        setLoggedIn(false);
+      });
   }, []);
 
   return (
@@ -104,7 +112,7 @@ export default function Header() {
 
               {/* Mis pedidos (sin login) */}
               <Link
-                href="/mis-pedidos"
+                href={ordersHref}
                 className="text-zinc-400 hover:text-accent text-sm transition-colors hidden sm:inline"
               >
                 Mi pedido
@@ -183,7 +191,7 @@ export default function Header() {
               </Link>
             ))}
             <Link
-              href="/mis-pedidos"
+              href={ordersHref}
               className="block text-zinc-300 text-sm font-display uppercase tracking-wide py-2"
               onClick={() => setMenuOpen(false)}
             >

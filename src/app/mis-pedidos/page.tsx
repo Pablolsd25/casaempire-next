@@ -1,6 +1,9 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
+import RecentOrderRedirect from '@/components/orders/RecentOrderRedirect'
 
 export const metadata: Metadata = { title: 'Buscar mi pedido — Empire Nutrition' }
 
@@ -27,6 +30,12 @@ export default async function MisPedidosPage({
 }: {
   searchParams: Promise<SearchParams>
 }) {
+  const authClient = await createClient()
+  const {
+    data: { user },
+  } = await authClient.auth.getUser()
+  if (user) redirect('/cuenta/ordenes')
+
   const sp    = await searchParams
   const email = sp.email?.trim().toLowerCase()
   const order = sp.order?.trim()
@@ -75,10 +84,12 @@ export default async function MisPedidosPage({
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16">
+      <RecentOrderRedirect />
       <div className="text-center mb-10">
         <h1 className="text-white font-black text-3xl mb-3">Buscar mi pedido</h1>
         <p className="text-zinc-400 text-sm">
-          Ingresa tu correo electrónico y el número de orden para ver el estado de tu pedido.
+          Si acabas de comprar, te llevamos automáticamente a tu pedido. Si no, ingresa correo y número
+          de orden.
         </p>
       </div>
 

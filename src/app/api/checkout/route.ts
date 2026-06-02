@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
           orderId:   existingOrder.id,
           openpayId: null,
           status:    existingOrder.status,
+          loggedIn:  !!profileId,
         })
       }
     }
@@ -313,6 +314,7 @@ export async function POST(req: NextRequest) {
       orderId:   order.id,
       openpayId: charge.id,
       status:    orderStatus,
+      loggedIn:  !!profileId,
     })
   } catch (err) {
     console.error('[checkout] Error inesperado:', err)
