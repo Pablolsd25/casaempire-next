@@ -1,8 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCartStore } from '@/lib/store/cart'
+import { LEGAL, LEGAL_LINKS } from '@/lib/site-legal'
+import { getOpenPayTokenError } from '@/lib/openpay-errors'
+import CheckoutFailedSummary, {
+  type FailedCheckoutSnapshot,
+} from '@/components/checkout/CheckoutFailedSummary'
 
 declare global {
   interface Window {
@@ -131,6 +138,8 @@ export default function CheckoutPage() {
   const [deviceSessionId, setDeviceSessionId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [paymentFailed, setPaymentFailed] = useState<FailedCheckoutSnapshot | null>(null)
   const [cardType, setCardType] = useState<'visa' | 'mastercard' | 'amex' | null>(null)
   // Clave de idempotencia: se genera una sola vez al cargar la página.
   // Si el usuario intenta pagar dos veces con el mismo intento, el backend
@@ -144,10 +153,10 @@ export default function CheckoutPage() {
     cardNumber: '', cardExpMonth: '', cardExpYear: '', cardCvv: '', cardName: '',
   })
 
-  // Redirigir si el carrito está vacío
+  // Redirigir si el carrito está vacío (excepto pantalla de pago fallido)
   useEffect(() => {
-    if (items.length === 0) router.replace('/carrito')
-  }, [items.length, router])
+    if (items.length === 0 && !paymentFailed) router.replace('/carrito')
+  }, [items.length, paymentFailed, router])
 
   // Cargar OpenPay.js + openpay-data.js (antifraude)
   useEffect(() => {
@@ -215,6 +224,14 @@ export default function CheckoutPage() {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
+  /** Solo dígitos para mes, año y CVV */
+  const handleNumericChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    const digits = value.replace(/\D/g, '')
+    const maxLen = name === 'cardExpMonth' ? 2 : name === 'cardExpYear' ? 2 : cardType === 'amex' ? 4 : 3
+    setForm({ ...form, [name]: digits.slice(0, maxLen) })
+  }
+
   /** Manejo especial del número de tarjeta: formato + detección de tipo */
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const type = getCardType(e.target.value)
@@ -247,7 +264,14 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setPaymentFailed(null)
     setLoading(true)
+
+    if (!acceptedTerms) {
+      setError('Debes aceptar los términos y condiciones para continuar.')
+      setLoading(false)
+      return
+    }
 
     if (!openpayReady) {
       setError('OpenPay no está listo. Intenta de nuevo.')
@@ -322,7 +346,23 @@ export default function CheckoutPage() {
           const data = await res.json()
 
           if (!res.ok) {
-            setError(data.error ?? 'Error al procesar el pago.')
+            const errMsg = data.error ?? 'Error al procesar el pago.'
+            if (res.status === 402) {
+              setPaymentFailed({
+                error: errMsg,
+                subtotal: sub,
+                shipping: ship,
+                discount: desc,
+                total: tot,
+                items: items.map((i) => ({
+                  name: i.product.name,
+                  quantity: i.quantity,
+                  lineTotal: i.product.price * i.quantity,
+                })),
+              })
+            } else {
+              setError(errMsg)
+            }
             setLoading(false)
             return
           }
@@ -337,15 +377,7 @@ export default function CheckoutPage() {
         }
       },
       (err) => {
-        // Mensajes de error de tokenización de OpenPay.js
-        const tokenErrors: Record<string, string> = {
-          '400': 'Los datos de la tarjeta son inválidos.',
-          '401': 'No autorizado. Verifica la configuración.',
-          '402': 'La tarjeta fue declinada.',
-          '500': 'Error del servicio de pagos. Intenta más tarde.',
-        }
-        const msg = tokenErrors[err.message] ?? `Error con la tarjeta: ${err.message}`
-        setError(msg)
+        setError(getOpenPayTokenError(err.message))
         setLoading(false)
       }
     )
@@ -353,9 +385,27 @@ export default function CheckoutPage() {
 
   const isSandbox = process.env.NEXT_PUBLIC_OPENPAY_SANDBOX === 'true'
 
+  if (paymentFailed) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <h1 className="text-white font-black text-3xl mb-2">Finalizar compra</h1>
+        <p className="text-zinc-500 text-sm mb-8">
+          {LEGAL.tradeName} · {LEGAL.legalName}
+        </p>
+        <CheckoutFailedSummary
+          snapshot={paymentFailed}
+          onRetry={() => setPaymentFailed(null)}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <h1 className="text-white font-black text-3xl mb-8">Finalizar compra</h1>
+      <h1 className="text-white font-black text-3xl mb-2">Finalizar compra</h1>
+      <p className="text-zinc-500 text-sm mb-8">
+        {LEGAL.tradeName} · {LEGAL.legalName}
+      </p>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* ── Formulario ─────────────────────────────────────────────────────── */}
@@ -486,8 +536,29 @@ export default function CheckoutPage() {
 
           {/* Datos de tarjeta */}
           <section className="bg-zinc-900 rounded-xl border border-zinc-800 p-6">
-            <h2 className="text-white font-semibold text-lg mb-1">Datos de tarjeta</h2>
-            <p className="text-zinc-500 text-xs mb-4">Pago seguro procesado por OpenPay · Tu información nunca toca nuestro servidor</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-white font-semibold text-lg mb-1">Datos de tarjeta</h2>
+                <p className="text-zinc-500 text-xs">
+                  Tu información de tarjeta nunca se almacena en nuestros servidores.
+                </p>
+              </div>
+              <Image
+                src="/envios/openpay.png"
+                alt="OpenPay — pagos seguros"
+                width={140}
+                height={40}
+                className="h-10 w-auto object-contain"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-zinc-800">
+              <span className="text-zinc-500 text-xs">Aceptamos:</span>
+              <VisaIcon />
+              <MastercardIcon />
+              <AmexIcon />
+              <span className="text-zinc-600 text-xs">Visa, Mastercard y American Express</span>
+            </div>
 
             {/* Tarjetas de prueba — solo en sandbox */}
             {isSandbox && (
@@ -575,7 +646,7 @@ export default function CheckoutPage() {
                   <label className="block text-zinc-400 text-sm mb-1">Mes</label>
                   <input
                     type="text" name="cardExpMonth" value={form.cardExpMonth}
-                    onChange={handleChange} placeholder="MM" maxLength={2} required
+                    onChange={handleNumericChange} placeholder="MM" maxLength={2} required
                     inputMode="numeric"
                     className="w-full bg-zinc-800 text-white rounded-lg px-4 py-2.5 border border-zinc-700
                       focus:outline-none focus:border-zinc-500 text-sm text-center"
@@ -585,7 +656,7 @@ export default function CheckoutPage() {
                   <label className="block text-zinc-400 text-sm mb-1">Año</label>
                   <input
                     type="text" name="cardExpYear" value={form.cardExpYear}
-                    onChange={handleChange} placeholder="AA" maxLength={2} required
+                    onChange={handleNumericChange} placeholder="AA" maxLength={2} required
                     inputMode="numeric"
                     className="w-full bg-zinc-800 text-white rounded-lg px-4 py-2.5 border border-zinc-700
                       focus:outline-none focus:border-zinc-500 text-sm text-center"
@@ -597,7 +668,7 @@ export default function CheckoutPage() {
                   </label>
                   <input
                     type="password" name="cardCvv" value={form.cardCvv}
-                    onChange={handleChange} placeholder="•••" maxLength={cardType === 'amex' ? 4 : 3} required
+                    onChange={handleNumericChange} placeholder="•••" maxLength={cardType === 'amex' ? 4 : 3} required
                     inputMode="numeric"
                     className="w-full bg-zinc-800 text-white rounded-lg px-4 py-2.5 border border-zinc-700
                       focus:outline-none focus:border-zinc-500 text-sm text-center"
@@ -647,7 +718,12 @@ export default function CheckoutPage() {
                 </div>
               )}
               <div className="flex justify-between text-zinc-400">
-                <span>Envío</span>
+                <span>
+                  Envío{' '}
+                  <Link href={LEGAL_LINKS.envios} className="text-accent hover:underline text-xs">
+                    (ver política)
+                  </Link>
+                </span>
                 {coupon?.freeShipping
                   ? <span className="text-green-400">Gratis</span>
                   : <span>${ship.toFixed(2)}</span>}
@@ -657,10 +733,38 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            <label className="mt-5 flex items-start gap-2 text-xs text-zinc-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-0.5 rounded border-zinc-600"
+              />
+              <span>
+                Acepto los{' '}
+                <Link href={LEGAL_LINKS.terminos} className="text-accent hover:underline">
+                  Términos y condiciones
+                </Link>
+                , la{' '}
+                <Link href={LEGAL_LINKS.privacidad} className="text-accent hover:underline">
+                  Política de privacidad
+                </Link>{' '}
+                y las políticas de{' '}
+                <Link href={LEGAL_LINKS.envios} className="text-accent hover:underline">
+                  envío
+                </Link>{' '}
+                y{' '}
+                <Link href={LEGAL_LINKS.garantia} className="text-accent hover:underline">
+                  devoluciones
+                </Link>
+                .
+              </span>
+            </label>
+
             <button
               type="submit"
-              disabled={loading || !openpayReady}
-              className="mt-6 w-full bg-white text-black font-bold py-4 rounded-xl text-base
+              disabled={loading || !openpayReady || !acceptedTerms}
+              className="mt-4 w-full bg-white text-black font-bold py-4 rounded-xl text-base
                 hover:bg-zinc-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed
                 flex items-center justify-center gap-2"
             >
@@ -677,9 +781,19 @@ export default function CheckoutPage() {
               )}
             </button>
 
-            <p className="text-zinc-600 text-xs text-center mt-3">
-              Pago 100% seguro · Procesado por OpenPay
+            <p className="text-zinc-600 text-xs text-center mt-3 leading-relaxed">
+              Pago procesado de forma segura por <strong className="text-zinc-500">OpenPay</strong>,
+              operado por BBVA.
             </p>
+            <div className="flex justify-center mt-2">
+              <Image
+                src="/envios/openpay.png"
+                alt="OpenPay"
+                width={100}
+                height={28}
+                className="h-7 w-auto opacity-80 object-contain"
+              />
+            </div>
           </div>
         </div>
       </form>

@@ -59,6 +59,33 @@ function StatusBanner({ status }: { status: string }) {
     )
   }
 
+  if (status === 'failed') {
+    return (
+      <div className="flex flex-col items-center mb-8">
+        <div className="w-20 h-20 bg-red-900 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </div>
+        <h1 className="text-white font-black text-3xl mb-2">Pago no completado</h1>
+        <p className="text-zinc-400 mb-2">
+          El pago de esta orden no fue aprobado. No se realizó un cargo exitoso.
+        </p>
+        <div className="bg-red-950 border border-red-800 text-red-300 text-sm rounded-lg px-4 py-3 max-w-md">
+          Puedes intentar de nuevo desde el{' '}
+          <Link href="/carrito" className="underline hover:text-red-200">
+            carrito
+          </Link>{' '}
+          o escribirnos por{' '}
+          <a href="https://wa.me/525571527659" className="underline hover:text-red-200">
+            WhatsApp
+          </a>
+          .
+        </div>
+      </div>
+    )
+  }
+
   if (status === 'cancelled') {
     return (
       <div className="flex flex-col items-center mb-8">
@@ -147,10 +174,16 @@ export default async function OrdenPage({ params, searchParams }: Props) {
 
       <OrderTimeline status={displayStatus} />
 
-      <p className="text-zinc-500 text-sm mb-8">
+      <p className="text-zinc-500 text-sm mb-2">
         Número de orden:{' '}
         <span className="text-zinc-300 font-mono">{o.id.slice(0, 8).toUpperCase()}</span>
       </p>
+      {o.customer_email && (
+        <p className="text-zinc-500 text-sm mb-8">
+          Correo: <span className="text-zinc-300">{o.customer_email}</span>
+        </p>
+      )}
+      {!o.customer_email && <div className="mb-8" />}
 
       {/* ── Número de guía ─────────────────────────────────────────────────── */}
       {o.tracking_number && (
@@ -186,11 +219,24 @@ export default async function OrdenPage({ params, searchParams }: Props) {
           <div className="flex justify-between text-zinc-400">
             <span>Subtotal</span><span>${o.subtotal.toFixed(2)}</span>
           </div>
+          {o.discount > 0 && (
+            <div className="flex justify-between text-green-400">
+              <span>Descuento</span>
+              <span>−${o.discount.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-zinc-400">
             <span>Envío</span><span>${o.shipping_cost.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-white font-bold text-base pt-2 border-t border-zinc-800">
-            <span>Total {displayStatus === 'pending' ? 'a cobrar' : 'pagado'}</span>
+            <span>
+              Total{' '}
+              {displayStatus === 'pending'
+                ? 'a cobrar'
+                : displayStatus === 'failed'
+                  ? '(no cobrado)'
+                  : 'pagado'}
+            </span>
             <span>${o.total.toFixed(2)} MXN</span>
           </div>
         </div>

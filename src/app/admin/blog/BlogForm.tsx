@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
+import { Upload, Loader2 } from 'lucide-react'
+import { uploadProductImage } from '@/lib/utils/image-upload'
 import type { BlogPost } from '@/types'
 
 const RichTextEditor = dynamic(
@@ -25,9 +27,12 @@ export default function BlogForm({ post }: Props) {
     content:      post?.content      ?? '',
   })
 
-  const [loading,     setLoading]     = useState(false)
-  const [error,       setError]       = useState('')
-  const [editorOpen,  setEditorOpen]  = useState(false)
+  const [loading,       setLoading]       = useState(false)
+  const [error,         setError]         = useState('')
+  const [editorOpen,    setEditorOpen]    = useState(false)
+  const [uploading,     setUploading]     = useState(false)
+  const [uploadError,   setUploadError]   = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const slugify = (s: string) =>
     s.toLowerCase()
@@ -140,14 +145,49 @@ export default function BlogForm({ post }: Props) {
         {/* Imagen de portada */}
         <div>
           <label className="block text-zinc-400 text-xs uppercase tracking-wide mb-1">
-            URL de imagen de portada
+            Imagen de portada
           </label>
+          <div className="flex gap-2">
+            <input
+              name="cover_image"
+              value={form.cover_image}
+              onChange={handleChange}
+              placeholder="https://... o sube una imagen"
+              className="flex-1 bg-zinc-950 border border-zinc-700 text-zinc-300 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-accent"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="px-3 py-2 bg-zinc-800 border border-zinc-700 text-zinc-300 rounded text-sm hover:bg-zinc-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              Subir
+            </button>
+          </div>
+          {uploadError && (
+            <p className="text-red-400 text-xs mt-1">{uploadError}</p>
+          )}
           <input
-            name="cover_image"
-            value={form.cover_image}
-            onChange={handleChange}
-            placeholder="https://..."
-            className="w-full bg-zinc-950 border border-zinc-700 text-zinc-300 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-accent"
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              setUploadError('')
+              setUploading(true)
+              try {
+                const url = await uploadProductImage(file, `blog_${Date.now()}`, 'products')
+                setForm(prev => ({ ...prev, cover_image: url }))
+              } catch (err: any) {
+                setUploadError(err.message)
+              } finally {
+                setUploading(false)
+                e.target.value = ''
+              }
+            }}
           />
           {form.cover_image && (
             <div className="mt-2 relative aspect-video w-full max-w-sm rounded-lg overflow-hidden border border-zinc-700">

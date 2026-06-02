@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { sendOrderConfirmation } from '@/lib/email/templates'
 import { validateCoupon } from '@/lib/coupons'
 import { SHIPPING_COST } from '@/lib/constants'
+import { getOpenPayError } from '@/lib/openpay-errors'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuración OpenPay
@@ -17,43 +18,6 @@ const PRIVATE_KEY  = process.env.OPENPAY_PRIVATE_KEY!
 
 function authHeader() {
   return 'Basic ' + Buffer.from(`${PRIVATE_KEY}:`).toString('base64')
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mapa de códigos de error OpenPay → mensajes en español
-// ─────────────────────────────────────────────────────────────────────────────
-const OPENPAY_ERROR_MESSAGES: Record<number, string> = {
-  1001: 'Los datos enviados son inválidos. Verifica la información e intenta de nuevo.',
-  1002: 'No estás autorizado para realizar esta operación.',
-  1003: 'La solicitud contiene parámetros incorrectos.',
-  1004: 'El servicio de pagos no está disponible en este momento. Intenta más tarde.',
-  2004: 'El número de tarjeta no es válido. Verifica los dígitos.',
-  2005: 'La tarjeta ha expirado. Usa una tarjeta vigente.',
-  2006: 'El código de seguridad (CVV) no fue proporcionado.',
-  2007: 'Esta tarjeta de prueba solo funciona en modo sandbox.',
-  2009: 'El código de seguridad (CVV) es incorrecto.',
-  2010: 'La autenticación 3D Secure falló. Intenta de nuevo.',
-  2011: 'Este tipo de tarjeta no admite pagos en línea.',
-  3001: 'La tarjeta fue declinada. Contacta a tu banco o usa otra tarjeta.',
-  3002: 'La tarjeta ha expirado. Usa una tarjeta vigente.',
-  3003: 'Fondos insuficientes. Verifica el saldo disponible en tu cuenta.',
-  3004: 'La tarjeta fue reportada como robada. Contacta a tu banco.',
-  3005: 'El pago fue rechazado por el sistema antifraude. Intenta con otra tarjeta.',
-  3006: 'Esta operación no está permitida para esta tarjeta.',
-  3008: 'Esta tarjeta no admite transacciones en línea. Usa otra tarjeta.',
-  3009: 'La tarjeta fue reportada como perdida. Contacta a tu banco.',
-  3010: 'Tu banco ha restringido esta tarjeta. Contacta al banco emisor.',
-  3011: 'Tu banco solicitó retener la tarjeta. Contacta al banco emisor.',
-  3012: 'Tu banco requiere autorización adicional para este pago. Contacta al banco.',
-  4001: 'Fondos insuficientes en la cuenta del comercio.',
-  4002: 'Existen comisiones vencidas. La operación no puede completarse.',
-}
-
-function getOpenPayError(charge: { error_code?: number; description?: string }): string {
-  if (charge.error_code && OPENPAY_ERROR_MESSAGES[charge.error_code]) {
-    return OPENPAY_ERROR_MESSAGES[charge.error_code]
-  }
-  return charge.description ?? 'El pago fue rechazado. Intenta con otra tarjeta.'
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

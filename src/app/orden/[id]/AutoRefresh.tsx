@@ -15,7 +15,8 @@ export default function AutoRefresh({
   intervalMs?: number
 }) {
   const router = useRouter()
-  const isFinal = status === 'delivered' || status === 'cancelled'
+  const isFinal =
+    status === 'delivered' || status === 'cancelled' || status === 'failed'
 
   useEffect(() => {
     if (isFinal) return
