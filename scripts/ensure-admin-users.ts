@@ -9,7 +9,7 @@
  *   SUPABASE_SERVICE_ROLE_KEY
  */
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 const DEFAULT_ADMINS = [
   'contacto@casaempire.net',
@@ -24,7 +24,7 @@ function normalize(email: string) {
 }
 
 async function findUserIdByEmail(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   email: string
 ): Promise<string | null> {
   const target = normalize(email)
