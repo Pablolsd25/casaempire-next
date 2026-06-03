@@ -54,13 +54,6 @@ function IconSettings() {
     </svg>
   )
 }
-function IconZap() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-    </svg>
-  )
-}
 function IconStore() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -136,12 +129,6 @@ const NAV_SECTIONS = [
     items: [
       { href: '/admin/cupones', label: 'Cupones', Icon: IconTicket },
       { href: '/admin/media',   label: 'Galería', Icon: IconMedia  },
-    ],
-  },
-  {
-    label: 'Pagos',
-    items: [
-      { href: '/admin/webhooks', label: 'Webhooks', Icon: IconZap },
     ],
   },
   {
