@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { checkAdminAccess } from '@/lib/admin-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { MediaItem } from '@/types'
 
@@ -15,9 +15,8 @@ function kindOf(name: string): 'image' | 'video' {
 
 // GET /api/admin/media — lista todos los archivos del bucket en las carpetas conocidas
 export async function GET() {
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
   const supabase = createAdminClient()
   const items: MediaItem[] = []
@@ -51,12 +50,16 @@ export async function GET() {
 
 // DELETE /api/admin/media — borra un archivo por path  { path }
 export async function DELETE(req: NextRequest) {
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
   const { path } = await req.json().catch(() => ({ path: '' }))
   if (!path) return NextResponse.json({ error: 'Falta el path.' }, { status: 400 })
+
+  const allowedPrefix = FOLDERS.some((f) => path === f || path.startsWith(`${f}/`))
+  if (!allowedPrefix) {
+    return NextResponse.json({ error: 'Ruta no permitida.' }, { status: 400 })
+  }
 
   const supabase = createAdminClient()
   const { error } = await supabase.storage.from(BUCKET).remove([path])

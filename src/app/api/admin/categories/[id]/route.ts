@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { checkAdminAccess } from '@/lib/admin-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 function slugify(s: string) {
@@ -18,11 +18,10 @@ function pick(body: any) {
 
 // PUT /api/admin/categories/[id] — actualizar
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
+  const { id } = await params
   const body = pick(await req.json())
   if (Object.keys(body).length === 0) {
     return NextResponse.json({ error: 'Nada que actualizar.' }, { status: 400 })
@@ -39,11 +38,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 // DELETE /api/admin/categories/[id]
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
+  const { id } = await params
   const supabase = createAdminClient()
   const { error } = await supabase.from('categories').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })

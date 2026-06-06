@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { buildIlikeOrFilter } from '@/lib/postgrest-sanitize'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
@@ -30,7 +31,7 @@ export default async function AdminClientesPage({
 
   if (q) {
     query = query.or(
-      `first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`
+      buildIlikeOrFilter(['first_name', 'last_name', 'email', 'phone'], q)
     )
   }
 

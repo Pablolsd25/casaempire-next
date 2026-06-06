@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useCartStore } from '@/lib/store/cart'
-import { saveLastOrder } from '@/lib/checkout-session'
+import { readLastOrder, saveLastOrder } from '@/lib/checkout-session'
 import { LEGAL } from '@/lib/site-legal'
 
 function ThreeDsReturnContent() {
@@ -41,7 +41,8 @@ function ThreeDsReturnContent() {
           return
         }
 
-        saveLastOrder(data.orderId, data.email ?? '')
+        const stored = readLastOrder()
+        saveLastOrder(data.orderId, stored?.email ?? '')
 
         if (data.status === 'paid') {
           clearCart()

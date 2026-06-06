@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { buildIlikeOrFilter } from '@/lib/postgrest-sanitize'
 import ProductGrid from '@/components/products/ProductGrid'
 import type { Product } from '@/types'
 import type { Metadata } from 'next'
@@ -23,7 +24,7 @@ export default async function BuscarPage({
       .from('products')
       .select('*, category:categories(*)')
       .eq('is_active', true)
-      .or(`name.ilike.%${q}%,description.ilike.%${q}%`)
+      .or(buildIlikeOrFilter(['name', 'description'], q))
       .order('created_at', { ascending: false })
 
     products = (data ?? []) as Product[]

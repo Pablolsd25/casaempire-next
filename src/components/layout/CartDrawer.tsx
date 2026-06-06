@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useCartStore } from "@/lib/store/cart";
+import CouponField from "@/components/cart/CouponField";
 
 export default function CartDrawer() {
   const {
@@ -13,9 +14,14 @@ export default function CartDrawer() {
     updateQuantity,
     subtotal,
     total,
+    discount,
+    shipping,
+    coupon,
   } = useCartStore();
   const sub = subtotal();
   const tot = total();
+  const desc = discount();
+  const ship = shipping();
 
   return (
     <>
@@ -185,10 +191,23 @@ export default function CartDrawer() {
               <span>Subtotal</span>
               <span>${sub.toFixed(2)} MXN</span>
             </div>
+            {coupon && desc > 0 && (
+              <div className="flex justify-between text-sm text-green-400">
+                <span>Descuento ({coupon.code})</span>
+                <span>−${desc.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm text-zinc-400">
               <span>Envío</span>
-              <span>$99.00 MXN</span>
+              <span>
+                {coupon?.freeShipping ? (
+                  <span className="text-green-400">Gratis</span>
+                ) : (
+                  `$${ship.toFixed(2)} MXN`
+                )}
+              </span>
             </div>
+            <CouponField />
             <div className="flex justify-between text-white font-semibold text-base border-t border-zinc-800 pt-3">
               <span>Total</span>
               <span>${tot.toFixed(2)} MXN</span>

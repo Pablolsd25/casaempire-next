@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { checkAdminAccess } from '@/lib/admin-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { ProductOption } from '@/types'
 
@@ -7,6 +7,9 @@ type Params = { params: Promise<{ id: string }> }
 
 // GET /api/admin/products/[id]/options
 export async function GET(_req: NextRequest, { params }: Params) {
+  const denied = await checkAdminAccess()
+  if (denied) return denied
+
   const { id } = await params
   const supabase = createAdminClient()
 
@@ -22,11 +25,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 // POST /api/admin/products/[id]/options  — batch replace all options
 export async function POST(req: NextRequest, { params }: Params) {
-  const { id } = await params
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
+  const { id } = await params
   const options: Omit<ProductOption, 'id' | 'product_id'>[] = await req.json()
   const supabase = createAdminClient()
 

@@ -39,7 +39,10 @@ export function verifyOpenPayWebhookBasicAuth(
 ): boolean {
   const expectedUser = process.env.OPENPAY_WEBHOOK_USER
   const expectedPass = process.env.OPENPAY_WEBHOOK_PASSWORD
-  if (!expectedUser || !expectedPass) return true
+  if (!expectedUser || !expectedPass) {
+    console.error('[openpay-webhook] OPENPAY_WEBHOOK_USER/PASSWORD no configurados — rechazando webhook')
+    return false
+  }
 
   if (!authorizationHeader?.startsWith('Basic ')) return false
   const decoded = Buffer.from(authorizationHeader.slice(6), 'base64').toString('utf8')

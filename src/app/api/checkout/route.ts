@@ -9,12 +9,25 @@ import { buildOpenPayChargeBody, isFallbackDeviceSessionId } from '@/lib/openpay
 import { isOpenPaySandbox } from '@/lib/openpay-env'
 import { openpayFetch, OPENPAY_API } from '@/lib/openpay-server'
 import { getPublicSiteOrigin, isLocalOrigin } from '@/lib/site-origin'
+import {
+  validateCheckoutItems,
+  validateClientAmount,
+} from '@/lib/checkout-validation'
+import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/checkout
 // ─────────────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
+    const rate = await checkRateLimit('checkout', req)
+    if (!rate.success) {
+      return NextResponse.json(
+        { error: 'Demasiados intentos de pago. Intenta más tarde.' },
+        { status: 429, headers: rateLimitHeaders(rate) }
+      )
+    }
+
     const body = await req.json()
     const {
       token, deviceSessionId, idempotencyKey,
@@ -70,10 +83,13 @@ export async function POST(req: NextRequest) {
 
     const supabase = createAdminClient()
 
-    const subtotal = items.reduce(
-      (acc: number, i: { price: number; quantity: number }) => acc + i.price * i.quantity,
-      0
-    )
+    const itemValidation = await validateCheckoutItems(supabase, items)
+    if (!itemValidation.ok) {
+      return NextResponse.json({ error: itemValidation.error }, { status: 400 })
+    }
+
+    const validatedItems = itemValidation.items
+    const subtotal = itemValidation.subtotal
 
     const { data: shippingSetting } = await supabase
       .from('site_settings')
@@ -94,9 +110,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const productIds = Array.from(
-      new Set(items.map((i: { productId: string }) => i.productId))
-    ) as string[]
+    const productIds = validatedItems.map((i) => i.productId)
     const { data: productShipping } = await supabase
       .from('products')
       .select('id, shipping_cost')
@@ -104,11 +118,16 @@ export async function POST(req: NextRequest) {
     const shippingMap = new Map(
       (productShipping ?? []).map((p: { id: string; shipping_cost: number | null }) => [p.id, p.shipping_cost])
     )
-    const itemShippingCosts = items.map(
-      (i: { productId: string }) => shippingMap.get(i.productId) ?? globalShippingCost
+    const itemShippingCosts = validatedItems.map(
+      (i) => shippingMap.get(i.productId) ?? globalShippingCost
     )
     const shippingCost = freeShipping ? 0 : Math.max(...itemShippingCosts)
     const total = Math.max(0, subtotal - discount + shippingCost)
+
+    const amountError = validateClientAmount(amount, total)
+    if (amountError) {
+      return NextResponse.json({ error: amountError }, { status: 400 })
+    }
 
     if (idempotencyKey) {
       const { data: existingOrder } = await supabase
@@ -198,7 +217,8 @@ export async function POST(req: NextRequest) {
       console.error(
         '[checkout] OpenPay charge failed — error_code:',
         charge.error_code,
-        JSON.stringify(charge)
+        '| status:',
+        charge.status
       )
       return NextResponse.json({ error: getOpenPayError(charge) }, { status: 402 })
     }
@@ -245,7 +265,7 @@ export async function POST(req: NextRequest) {
       }
 
       await supabase.from('order_items').insert(
-        items.map((i: { productId: string; quantity: number; price: number }) => ({
+        validatedItems.map((i) => ({
           order_id:   order.id,
           product_id: i.productId,
           quantity:   i.quantity,
@@ -317,7 +337,7 @@ export async function POST(req: NextRequest) {
     }
 
     await supabase.from('order_items').insert(
-      items.map((i: { productId: string; quantity: number; price: number }) => ({
+      validatedItems.map((i) => ({
         order_id:   order.id,
         product_id: i.productId,
         quantity:   i.quantity,
@@ -328,7 +348,7 @@ export async function POST(req: NextRequest) {
     await fulfillPaidOrder(supabase, {
       orderId:         order.id,
       profileId,
-      items,
+      items:           validatedItems,
       customer,
       shippingAddress,
       subtotal,

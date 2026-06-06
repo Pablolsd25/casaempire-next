@@ -1,6 +1,16 @@
 import { isEmailConfigured, sendEmail } from '@/lib/email/send'
 import { getPublicSiteOrigin } from '@/lib/site-origin'
 
+/** Escapa HTML en valores interpolados en plantillas de correo. */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos compartidos
 // ─────────────────────────────────────────────────────────────────────────────

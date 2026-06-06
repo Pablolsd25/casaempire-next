@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { checkAdminAccess } from '@/lib/admin-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 function normalize(body: any) {
@@ -16,11 +16,10 @@ function normalize(body: any) {
 
 // PUT /api/admin/coupons/[id] — actualizar
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
+  const { id } = await params
   const body = normalize(await req.json())
   if (!body.code) return NextResponse.json({ error: 'El código es obligatorio.' }, { status: 400 })
 
@@ -35,11 +34,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 // DELETE /api/admin/coupons/[id] — eliminar
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
+  const { id } = await params
   const supabase = createAdminClient()
   const { error } = await supabase.from('coupons').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })

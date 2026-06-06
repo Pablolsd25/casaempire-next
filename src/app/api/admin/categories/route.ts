@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { checkAdminAccess } from '@/lib/admin-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 function slugify(s: string) {
@@ -19,9 +19,8 @@ function pick(body: any) {
 
 // GET /api/admin/categories — lista con conteo de productos
 export async function GET() {
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
   const supabase = createAdminClient()
   const { data, error } = await supabase
@@ -34,9 +33,8 @@ export async function GET() {
 
 // POST /api/admin/categories — crear
 export async function POST(req: NextRequest) {
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
   const body = pick(await req.json())
   if (!body.name) return NextResponse.json({ error: 'El nombre es obligatorio.' }, { status: 400 })

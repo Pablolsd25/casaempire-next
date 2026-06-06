@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { checkAdminAccess } from '@/lib/admin-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 // POST /api/admin/categories/[id]/products
@@ -7,11 +7,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 // - add:    asigna category_id = id a esos productos
 // - remove: pone category_id = null SOLO si pertenecen a esta categoría
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
+  const { id } = await params
   const { add = [], remove = [] } = await req.json().catch(() => ({}))
   const supabase = createAdminClient()
 

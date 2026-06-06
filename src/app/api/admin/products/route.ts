@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { checkAdminAccess } from '@/lib/admin-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 // GET /api/admin/products — lista (para pickers/asignación). Soporta ?q= y ?cat=
 export async function GET(req: NextRequest) {
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
   const { searchParams } = new URL(req.url)
   const q   = searchParams.get('q')
@@ -28,9 +27,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/admin/products — crear producto
 export async function POST(req: NextRequest) {
-  const auth = await createClient()
-  const { data: { user } } = await auth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const denied = await checkAdminAccess()
+  if (denied) return denied
 
   const supabase = createAdminClient()
   const body = await req.json()

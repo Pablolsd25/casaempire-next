@@ -15,6 +15,39 @@ function splitCustomerName(full: string | null): { firstName: string; lastName: 
   }
 }
 
+type OrderRow = {
+  id: string
+  status: string
+  profile_id: string | null
+  subtotal: number
+  shipping_cost: number
+  discount: number
+  total: number
+  coupon_code: string | null
+  customer_email: string | null
+  customer_name: string | null
+  shipping_address: Record<string, string | undefined> | null
+  items: Array<{
+    product_id: string
+    quantity: number
+    unit_price: number
+    product: { name?: string } | { name?: string }[] | null
+  }> | null
+}
+
+function orderResponse(
+  order: OrderRow,
+  status: string,
+  extra?: Record<string, unknown>
+) {
+  return {
+    orderId:  order.id,
+    status,
+    loggedIn: !!order.profile_id,
+    ...extra,
+  }
+}
+
 // GET /api/checkout/3ds-confirm?chargeId=… — Paso 8 del flujo 3D Secure (Openpay)
 export async function GET(req: NextRequest) {
   try {
@@ -39,33 +72,30 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Orden no encontrada.' }, { status: 404 })
     }
 
-    if (order.status === 'paid') {
-      return NextResponse.json({
-        orderId:  order.id,
-        status:   'paid',
-        email:    order.customer_email,
-        loggedIn: !!order.profile_id,
-      })
+    const typedOrder = order as OrderRow
+
+    if (typedOrder.status === 'paid') {
+      return NextResponse.json(orderResponse(typedOrder, 'paid'))
     }
 
     const openpayRes = await openpayFetch(`/charges/${encodeURIComponent(chargeId)}`)
     const charge = await openpayRes.json()
 
     if (!openpayRes.ok) {
-      console.error('[3ds-confirm] OpenPay GET charge failed:', charge)
+      console.error('[3ds-confirm] OpenPay GET charge failed — status:', charge.status)
       return NextResponse.json(
         { error: getOpenPayError(charge) },
         { status: 502 }
       )
     }
 
-    console.log('[3ds-confirm] charge status:', charge.status, '| order:', order.id)
+    console.log('[3ds-confirm] charge status:', charge.status, '| order:', typedOrder.id)
 
     if (charge.status === 'completed') {
-      await supabase.from('orders').update({ status: 'paid' }).eq('id', order.id)
+      await supabase.from('orders').update({ status: 'paid' }).eq('id', typedOrder.id)
 
-      const { firstName, lastName } = splitCustomerName(order.customer_name)
-      const rawAddr = (order.shipping_address ?? {}) as Record<string, string | undefined>
+      const { firstName, lastName } = splitCustomerName(typedOrder.customer_name)
+      const rawAddr = (typedOrder.shipping_address ?? {}) as Record<string, string | undefined>
       const shippingAddress = {
         street:      rawAddr.street ?? '',
         numExterior: rawAddr.numExterior,
@@ -79,83 +109,59 @@ export async function GET(req: NextRequest) {
         country:     rawAddr.country,
       }
 
-      const items = (order.items ?? []).map((row) => {
-        const product = row.product as { name?: string } | { name?: string }[] | null
+      const items = (typedOrder.items ?? []).map((row) => {
+        const product = row.product
         const name = Array.isArray(product)
           ? product[0]?.name
           : product?.name
         return {
-          productId: row.product_id as string,
+          productId: row.product_id,
           name:      name ?? 'Producto',
-          quantity:  row.quantity as number,
-          price:     row.unit_price as number,
+          quantity:  row.quantity,
+          price:     row.unit_price,
         }
       })
 
       await fulfillPaidOrder(supabase, {
-        orderId:         order.id,
-        profileId:       order.profile_id,
+        orderId:         typedOrder.id,
+        profileId:       typedOrder.profile_id,
         items,
         customer: {
           firstName,
           lastName,
-          email: order.customer_email ?? '',
+          email: typedOrder.customer_email ?? '',
           phone: '',
         },
         shippingAddress,
-        subtotal:        order.subtotal,
-        shippingCost:    order.shipping_cost,
-        total:           order.total,
-        validCouponCode: order.coupon_code,
+        subtotal:        typedOrder.subtotal,
+        shippingCost:    typedOrder.shipping_cost,
+        total:           typedOrder.total,
+        validCouponCode: typedOrder.coupon_code,
         productIds:      items.map((i) => i.productId),
       })
 
-      return NextResponse.json({
-        orderId:  order.id,
-        status:   'paid',
-        email:    order.customer_email,
-        loggedIn: !!order.profile_id,
-      })
+      return NextResponse.json(orderResponse(typedOrder, 'paid'))
     }
 
     if (charge.status === 'in_progress') {
-      return NextResponse.json({
-        orderId:  order.id,
-        status:   'pending',
-        email:    order.customer_email,
-        loggedIn: !!order.profile_id,
-      })
+      return NextResponse.json(orderResponse(typedOrder, 'pending'))
     }
 
     if (charge.status === 'charge_pending') {
-      return NextResponse.json({
-        orderId:  order.id,
-        status:   'pending',
-        pending3ds: true,
-        email:    order.customer_email,
-        loggedIn: !!order.profile_id,
-      })
+      return NextResponse.json(orderResponse(typedOrder, 'pending', { pending3ds: true }))
     }
 
     if (charge.status === 'failed') {
-      await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id)
-      return NextResponse.json({
-        orderId:  order.id,
-        status:   'failed',
-        error:    getOpenPayError(charge),
-        email:    order.customer_email,
-        loggedIn: !!order.profile_id,
-      })
+      await supabase.from('orders').update({ status: 'cancelled' }).eq('id', typedOrder.id)
+      return NextResponse.json(
+        orderResponse(typedOrder, 'failed', { error: getOpenPayError(charge) })
+      )
     }
 
-    await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id)
-    return NextResponse.json({
-      orderId:  order.id,
-      status:   'failed',
-      error:    getOpenPayError(charge),
-      email:    order.customer_email,
-      loggedIn: !!order.profile_id,
-    })
+    await supabase.from('orders').update({ status: 'cancelled' }).eq('id', typedOrder.id)
+    return NextResponse.json(
+      orderResponse(typedOrder, 'failed', { error: getOpenPayError(charge) })
+    )
   } catch (err) {
     console.error('[3ds-confirm] Error:', err)
     return NextResponse.json({ error: 'Error interno del servidor.' }, { status: 500 })
