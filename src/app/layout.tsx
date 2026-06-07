@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     'Suplementos deportivos de alta calidad para hombres y mujeres. Proteínas, creatina, BCAA, quemadores y más. Envíos a todo México.',
   keywords: ['suplementos', 'proteína', 'creatina', 'BCAA', 'nutrición deportiva', 'México'],
   icons: {
-    icon:  '/favicon.jpg',
+    icon: '/favicon.jpg',
     apple: '/favicon.jpg',
   },
   openGraph: {

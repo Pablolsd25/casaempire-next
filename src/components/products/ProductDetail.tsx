@@ -165,7 +165,7 @@ export default function ProductDetail({
             )}
 
             {/* Out of stock overlay */}
-            {product.stock === 0 && current?.type !== "video" && (
+            {manageStock && product.stock === 0 && current?.type !== "video" && (
               <div className="absolute inset-0 bg-black/65 flex items-center justify-center z-10">
                 <span className="border border-zinc-600 text-zinc-400 font-display uppercase text-sm px-5 py-2 rounded-lg">
                   Agotado
