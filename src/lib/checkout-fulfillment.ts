@@ -1,5 +1,6 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
-import { sendAdminSaleNotification, sendOrderConfirmation } from '@/lib/email/templates'
+import { sendAdminSaleNotification } from '@/lib/email/templates'
+import { sendCustomerOrderConfirmationIfNeeded } from '@/lib/order-confirmation-email'
 import { resolveWixOrderNumber } from '@/lib/order-number'
 import { getSalesNotificationEmails } from '@/lib/sales-notifications'
 
@@ -128,32 +129,7 @@ export async function fulfillPaidOrder(
   const customerName = `${customer.firstName} ${customer.lastName}`.trim()
   const resolvedWix = await resolveWixOrderNumber(supabase, orderId, wixOrderNumber)
 
-  try {
-    await sendOrderConfirmation({
-      to: customer.email,
-      orderId,
-      wixOrderNumber: resolvedWix,
-      items,
-      subtotal,
-      shipping:        shippingCost,
-      total,
-      name:            customerName,
-      shippingAddress: {
-        street:      shippingAddress.street,
-        numExterior: shippingAddress.numExterior,
-        numInterior: shippingAddress.numInterior,
-        colonia:     shippingAddress.colonia,
-        municipio:   shippingAddress.municipio,
-        referencias: shippingAddress.referencias,
-        city:        shippingAddress.city,
-        state:       shippingAddress.state,
-        zip:         shippingAddress.zip,
-        country:     shippingAddress.country ?? 'México',
-      },
-    })
-  } catch (emailErr) {
-    console.error('[checkout] Email cliente no enviado:', emailErr)
-  }
+  await sendCustomerOrderConfirmationIfNeeded(supabase, orderId)
 
   try {
     const adminEmails = await getSalesNotificationEmails(supabase)

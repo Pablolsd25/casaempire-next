@@ -44,6 +44,7 @@ interface OrderConfirmationArgs {
   total:            number
   name:             string
   shippingAddress?: ShippingAddr
+  replyTo?:         string
 }
 
 interface ShippingNotificationArgs {
@@ -147,7 +148,7 @@ function orderConfirmationHtml(args: OrderConfirmationArgs): string {
     .map(
       (i) => `
       <tr>
-        <td style="padding:10px 0;border-bottom:1px solid #27272a;color:#a1a1aa;font-size:14px;">${i.name}</td>
+        <td style="padding:10px 0;border-bottom:1px solid #27272a;color:#a1a1aa;font-size:14px;">${escapeHtml(i.name)}</td>
         <td style="padding:10px 0;border-bottom:1px solid #27272a;color:#a1a1aa;font-size:14px;text-align:center;">×${i.quantity}</td>
         <td style="padding:10px 0;border-bottom:1px solid #27272a;color:#ffffff;font-size:14px;text-align:right;">$${(i.price * i.quantity).toFixed(2)}</td>
       </tr>`
@@ -158,7 +159,7 @@ function orderConfirmationHtml(args: OrderConfirmationArgs): string {
     <tr>
       <td style="background:#09090b;border-left:1px solid #27272a;border-right:1px solid #27272a;padding:32px 36px;">
         <p style="color:#a1a1aa;font-size:15px;line-height:1.6;margin:0 0 24px;">
-          Hola <strong style="color:#ffffff;">${name}</strong>,<br>
+          Hola <strong style="color:#ffffff;">${escapeHtml(name)}</strong>,<br>
           tu pedido ha sido recibido y está siendo procesado. Recibirás tu número de guía en 24–48 horas hábiles.
         </p>
 
@@ -274,6 +275,7 @@ export async function sendOrderConfirmation(args: OrderConfirmationArgs): Promis
   const displayNum = formatOrderNumber({ id: args.orderId, wix_order_number: args.wixOrderNumber }, { withHash: false })
   await sendEmail({
     to:      args.to,
+    replyTo: args.replyTo,
     subject: `Pedido #${displayNum} confirmado — Empire Nutrition`,
     html:    orderConfirmationHtml(args),
     text:    `Hola ${args.name}, tu pedido #${displayNum} fue confirmado. Total: $${args.total.toFixed(2)} MXN. Empire Nutrition`,

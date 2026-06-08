@@ -6,6 +6,7 @@ import {
   verifyOpenPayWebhookBasicAuth,
 } from '@/lib/openpay-webhook'
 import { openpayFetch } from '@/lib/openpay-server'
+import { sendCustomerOrderConfirmationIfNeeded } from '@/lib/order-confirmation-email'
 
 async function fetchCharge(transactionId: string) {
   try {
@@ -135,10 +136,15 @@ export async function POST(req: NextRequest) {
       if (charge?.status === 'completed' || charge?.status === 'in_progress') {
         const orderId = await findOrderIdByTransaction(supabase, transactionId, merchantOrderId)
         if (orderId) {
+          const newStatus = charge.status === 'completed' ? 'paid' : 'pending'
           await supabase
             .from('orders')
-            .update({ status: charge.status === 'completed' ? 'paid' : 'pending' })
+            .update({ status: newStatus })
             .eq('id', orderId)
+
+          if (newStatus === 'paid') {
+            await sendCustomerOrderConfirmationIfNeeded(supabase, orderId)
+          }
         }
 
         if (logId) {
