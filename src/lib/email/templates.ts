@@ -267,11 +267,17 @@ function shippingNotificationHtml(args: ShippingNotificationArgs): string {
 // Funciones exportadas
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function sendOrderConfirmation(args: OrderConfirmationArgs): Promise<void> {
+function assertEmailConfigured(action: string, orderId?: string): void {
   if (!isEmailConfigured()) {
-    console.info('[email] Correo no configurado — confirmación omitida para orden', args.orderId)
-    return
+    const hint =
+      'Define EMAIL_PROVIDER=smtp, SMTP_USER y SMTP_PASS en Vercel (contraseña de aplicación de Google).'
+    const ctx = orderId ? ` — orden ${orderId}` : ''
+    throw new Error(`Correo no configurado (${action})${ctx}. ${hint}`)
   }
+}
+
+export async function sendOrderConfirmation(args: OrderConfirmationArgs): Promise<void> {
+  assertEmailConfigured('confirmación de pedido', args.orderId)
   const displayNum = formatOrderNumber({ id: args.orderId, wix_order_number: args.wixOrderNumber }, { withHash: false })
   await sendEmail({
     to:      args.to,
@@ -283,10 +289,7 @@ export async function sendOrderConfirmation(args: OrderConfirmationArgs): Promis
 }
 
 export async function sendShippingNotification(args: ShippingNotificationArgs): Promise<void> {
-  if (!isEmailConfigured()) {
-    console.info('[email] Correo no configurado — aviso de envío omitido para orden', args.orderId)
-    return
-  }
+  assertEmailConfigured('aviso de envío', args.orderId)
   const displayNum = formatOrderNumber({ id: args.orderId, wix_order_number: args.wixOrderNumber }, { withHash: false })
   await sendEmail({
     to:      args.to,
@@ -341,10 +344,7 @@ function adminSaleNotificationHtml(args: AdminSaleNotificationArgs): string {
 
 export async function sendAdminSaleNotification(args: AdminSaleNotificationArgs): Promise<void> {
   if (!args.to.length) return
-  if (!isEmailConfigured()) {
-    console.info('[email] Correo no configurado — aviso de venta omitido para orden', args.orderId)
-    return
-  }
+  assertEmailConfigured('aviso de venta', args.orderId)
   const displayNum = formatOrderNumber({ id: args.orderId, wix_order_number: args.wixOrderNumber }, { withHash: false })
   await sendEmail({
     to:      args.to,

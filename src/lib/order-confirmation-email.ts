@@ -1,4 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
+import { isEmailConfigured } from '@/lib/email/send'
 import { sendOrderConfirmation } from '@/lib/email/templates'
 import { LEGAL } from '@/lib/site-legal'
 
@@ -74,6 +75,15 @@ export async function sendCustomerOrderConfirmationIfNeeded(
     return false
   }
 
+  if (!isEmailConfigured()) {
+    console.error(
+      '[email] SMTP no configurado en Vercel — no se envió confirmación al cliente | orden',
+      orderId,
+      '| Define EMAIL_PROVIDER=smtp, SMTP_USER y SMTP_PASS'
+    )
+    return false
+  }
+
   const rawAddr = (row.shipping_address ?? {}) as Record<string, string | undefined>
   const items = mapOrderItems(row.items)
 
@@ -107,13 +117,7 @@ export async function sendCustomerOrderConfirmationIfNeeded(
       .update({ confirmation_email_sent_at: new Date().toISOString() })
       .eq('id', orderId)
 
-    console.info(
-      '[email] Confirmación enviada al cliente:',
-      email,
-      '| orden',
-      orderId,
-      '| proveedor: revisa log "[email] Enviando con proveedor"'
-    )
+    console.info('[email] Confirmación enviada al cliente:', email, '| orden', orderId)
     return true
   } catch (err) {
     console.error('[email] Confirmación al cliente falló — orden', orderId, '|', email, err)
