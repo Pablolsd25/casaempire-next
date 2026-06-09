@@ -13,6 +13,7 @@ import CheckoutFailedSummary, {
 import { saveLastOrder } from "@/lib/checkout-session";
 import CouponField from "@/components/cart/CouponField";
 import MexicoAddressFields from "@/components/checkout/MexicoAddressFields";
+import { validateCheckoutCustomer } from "@/lib/checkout-validation";
 
 declare global {
   interface Window {
@@ -330,6 +331,14 @@ export default function CheckoutPage() {
 
   // ── Validación client-side ─────────────────────────────────────────────────
   function validateForm(): string | null {
+    const contactError = validateCheckoutCustomer({
+      firstName: form.firstName,
+      lastName: form.lastName,
+      email: form.email,
+      phone: form.phone,
+    });
+    if (!contactError.ok) return contactError.error;
+
     const cleanCard = form.cardNumber.replace(/\s/g, "");
     if (cleanCard.length < 13) return "Número de tarjeta incompleto.";
     if (!luhnCheck(cleanCard))
@@ -347,11 +356,6 @@ export default function CheckoutPage() {
     // Si no hay número exterior, las referencias son obligatorias
     if (!form.numExterior.trim() && !form.referencias.trim()) {
       return "Ingresa el número exterior o referencias precisas para localizar el domicilio.";
-    }
-
-    const phoneDigits = form.phone.replace(/\D/g, "").slice(-10);
-    if (phoneDigits.length !== 10) {
-      return "Ingresa un teléfono celular válido de 10 dígitos.";
     }
 
     return null;
@@ -581,7 +585,7 @@ export default function CheckoutPage() {
                 <div key={f.name}>
                   <label className="block text-zinc-400 text-sm mb-1">
                     {f.label}
-                    {f.name === "phone" && (
+                    {f.required && (
                       <span className="text-zinc-600 font-normal"> *</span>
                     )}
                   </label>

@@ -6,8 +6,8 @@ import TrackingInput from './TrackingInput'
 import RefundButton from './RefundButton'
 import OrderNoteInput from './OrderNoteInput'
 import DownloadReceiptButton from './DownloadReceiptButton'
-import { formatMexicanPhone } from '@/lib/checkout-validation'
 import { formatOrderNumber } from '@/lib/order-number'
+import { formatOrderPhone, resolveOrderEmail } from '@/lib/order-customer'
 
 export const metadata = { title: 'Detalle de Orden | Admin' }
 
@@ -76,6 +76,8 @@ export default async function OrdenDetallePage({
   if (!order) notFound()
 
   const addr      = order.shipping_address as Record<string, string> | null
+  const phoneDisplay = formatOrderPhone(order)
+  const emailDisplay = resolveOrderEmail(order)
   const canRefund = ['paid', 'shipped'].includes(order.status) && !!order.openpay_transaction_id
   const hasNext   = (NEXT_STATUS[order.status]?.length ?? 0) > 0
   const showTracking = ['paid', 'shipped', 'delivered'].includes(order.status)
@@ -328,11 +330,9 @@ export default async function OrdenDetallePage({
                   {order.customer_name && (
                     <p className="text-white text-sm font-medium truncate">{order.customer_name}</p>
                   )}
-                  <p className="text-zinc-400 text-xs truncate">{order.customer_email ?? '—'}</p>
-                  {order.customer_phone && (
-                    <p className="text-zinc-500 text-xs truncate">
-                      Tel: {formatMexicanPhone(order.customer_phone)}
-                    </p>
+                  <p className="text-zinc-400 text-xs truncate">{emailDisplay ?? '—'}</p>
+                  {phoneDisplay && (
+                    <p className="text-zinc-500 text-xs truncate">Tel: {phoneDisplay}</p>
                   )}
                 </div>
               </div>

@@ -3,6 +3,7 @@ import {
   MAX_ITEM_QUANTITY,
   formatMexicanPhone,
   normalizeMexicanPhone,
+  validateCheckoutCustomer,
   validateClientAmount,
   validateItemQuantities,
 } from './checkout-validation'
@@ -69,5 +70,43 @@ describe('normalizeMexicanPhone', () => {
 describe('formatMexicanPhone', () => {
   it('formats 10 digits', () => {
     expect(formatMexicanPhone('5512345678')).toBe('55 1234 5678')
+  })
+})
+
+describe('validateCheckoutCustomer', () => {
+  const valid = {
+    firstName: 'Ana',
+    lastName: 'García',
+    email: 'ana@ejemplo.com',
+    phone: '5512345678',
+  }
+
+  it('accepts valid contact data', () => {
+    const result = validateCheckoutCustomer(valid)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.customer).toEqual({
+        firstName: 'Ana',
+        lastName: 'García',
+        email: 'ana@ejemplo.com',
+        phone: '5512345678',
+      })
+    }
+  })
+
+  it('rejects missing first name', () => {
+    expect(validateCheckoutCustomer({ ...valid, firstName: '  ' }).ok).toBe(false)
+  })
+
+  it('rejects missing last name', () => {
+    expect(validateCheckoutCustomer({ ...valid, lastName: '' }).ok).toBe(false)
+  })
+
+  it('rejects invalid email', () => {
+    expect(validateCheckoutCustomer({ ...valid, email: 'no-es-correo' }).ok).toBe(false)
+  })
+
+  it('rejects invalid phone', () => {
+    expect(validateCheckoutCustomer({ ...valid, phone: '123' }).ok).toBe(false)
   })
 })

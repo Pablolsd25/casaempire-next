@@ -170,6 +170,9 @@ async function main() {
         wo.shippingInfo?.shipmentDetails?.address ??
         wo.billingInfo?.address
 
+      const customerEmail =
+        (wo.buyerInfo?.email ?? addr?.email ?? '').trim().toLowerCase() || null
+
       const shippingAddress = addr ? {
         street:     addr.addressLine1 ?? '',
         city:       addr.city ?? '',
@@ -177,6 +180,7 @@ async function main() {
         postalCode: addr.zipCode ?? '',
         country:    addr.country ?? 'MX',
         phone:      addr.phone ?? wo.buyerInfo?.phone ?? '',
+        email:      customerEmail ?? '',
       } : null
 
       const { data: order, error: orderErr } = await supabase
@@ -189,7 +193,7 @@ async function main() {
           total:                  parseFloat(wo.totals.total),
           openpay_transaction_id: `wix_${wo.id}`,
           shipping_address:       shippingAddress,
-          customer_email:         wo.buyerInfo?.email ?? addr?.email ?? null,
+          customer_email:         customerEmail,
           customer_name:          customerName,
           wix_order_number:       wo.number,
           created_at:             wo.dateCreated,

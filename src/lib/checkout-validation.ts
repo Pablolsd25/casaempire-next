@@ -4,6 +4,42 @@ type Supabase = ReturnType<typeof createAdminClient>
 
 export const MAX_ITEM_QUANTITY = 99
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+export type CheckoutCustomerInput = {
+  firstName?: unknown
+  lastName?: unknown
+  email?: unknown
+  phone?: unknown
+}
+
+export type ValidatedCheckoutCustomer = {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+}
+
+export function validateCheckoutCustomer(
+  customer: CheckoutCustomerInput | null | undefined
+): { ok: true; customer: ValidatedCheckoutCustomer } | { ok: false; error: string } {
+  const firstName = String(customer?.firstName ?? '').trim()
+  const lastName = String(customer?.lastName ?? '').trim()
+  const email = String(customer?.email ?? '').trim().toLowerCase()
+  const phone = normalizeMexicanPhone(customer?.phone)
+
+  if (!firstName) return { ok: false, error: 'Ingresa tu nombre.' }
+  if (!lastName) return { ok: false, error: 'Ingresa tu apellido.' }
+  if (!email || !EMAIL_RE.test(email)) {
+    return { ok: false, error: 'Ingresa un correo electrónico válido.' }
+  }
+  if (!phone) {
+    return { ok: false, error: 'Ingresa un teléfono celular válido de 10 dígitos.' }
+  }
+
+  return { ok: true, customer: { firstName, lastName, email, phone } }
+}
+
 /** Normaliza teléfono MX a 10 dígitos (celular). */
 export function normalizeMexicanPhone(raw: unknown): string | null {
   const digits = String(raw ?? '').replace(/\D/g, '').slice(-10)

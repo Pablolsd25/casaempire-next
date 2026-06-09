@@ -226,13 +226,20 @@ async function main() {
         wo.shippingInfo?.shipmentDetails?.address ??
         wo.billingInfo?.address
 
+      const rawPhone = (addr?.phone ?? wo.buyerInfo?.phone ?? '').replace(/\D/g, '').slice(-10)
+      const customerPhone = rawPhone.length === 10 ? rawPhone : null
+
+      const customerEmail =
+        (wo.buyerInfo?.email ?? addr?.email ?? '').trim().toLowerCase() || null
+
       const shippingAddress = addr ? {
         street:     addr.addressLine1 ?? '',
         city:       addr.city ?? '',
         state:      addr.subdivision ?? '',
         postalCode: addr.zipCode ?? '',
         country:    addr.country ?? 'MX',
-        phone:      addr.phone ?? wo.buyerInfo?.phone ?? '',
+        phone:      customerPhone ?? '',
+        email:      customerEmail ?? '',
       } : null
 
       const subtotal     = parseFloat(wo.totals.subtotal)
@@ -249,9 +256,10 @@ async function main() {
           total:                  total_amount,
           openpay_transaction_id: wixRef,
           shipping_address:       shippingAddress,
-          customer_email:         wo.buyerInfo?.email ?? addr?.email ?? null,
+          customer_email:         customerEmail,
           customer_name: [wo.buyerInfo?.firstName, wo.buyerInfo?.lastName]
             .filter(Boolean).join(' ').trim() || null,
+          customer_phone: customerPhone,
           wix_order_number: wo.number,
           created_at:             wo.dateCreated,
         })

@@ -10,7 +10,7 @@ import { isOpenPaySandbox } from '@/lib/openpay-env'
 import { openpayFetch, getOpenPayApi } from '@/lib/openpay-server'
 import { getPublicSiteOrigin, isLocalOrigin } from '@/lib/site-origin'
 import {
-  normalizeMexicanPhone,
+  validateCheckoutCustomer,
   validateCheckoutItems,
   validateClientAmount,
 } from '@/lib/checkout-validation'
@@ -47,13 +47,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const customerPhone = normalizeMexicanPhone(customer?.phone)
-    if (!customerPhone) {
-      return NextResponse.json(
-        { error: 'Ingresa un teléfono celular válido de 10 dígitos.' },
-        { status: 400 }
-      )
+    const customerResult = validateCheckoutCustomer(customer)
+    if (!customerResult.ok) {
+      return NextResponse.json({ error: customerResult.error }, { status: 400 })
     }
+    const validatedCustomer = customerResult.customer
 
     const serverSandbox = isOpenPaySandbox()
     const clientSandbox = openpaySandbox === true
@@ -199,7 +197,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const customerWithPhone = { ...customer, phone: customerPhone }
+    const customerWithPhone = validatedCustomer
 
     const chargeBody = buildOpenPayChargeBody({
       token,
@@ -264,9 +262,9 @@ export async function POST(req: NextRequest) {
           total,
           openpay_transaction_id: charge.id,
           shipping_address:       shippingAddress,
-          customer_email:         customer.email?.trim().toLowerCase() ?? null,
-          customer_name:          `${customer.firstName} ${customer.lastName}`.trim(),
-          customer_phone:         customerPhone,
+          customer_email:         validatedCustomer.email,
+          customer_name:          `${validatedCustomer.firstName} ${validatedCustomer.lastName}`.trim(),
+          customer_phone:         validatedCustomer.phone,
           idempotency_key:        idempotencyKey ?? null,
         })
         .select()
@@ -321,9 +319,9 @@ export async function POST(req: NextRequest) {
         total,
         openpay_transaction_id: charge.id,
         shipping_address:       shippingAddress,
-        customer_email:         customer.email?.trim().toLowerCase() ?? null,
-        customer_name:          `${customer.firstName} ${customer.lastName}`.trim(),
-        customer_phone:         customerPhone,
+        customer_email:         validatedCustomer.email,
+        customer_name:          `${validatedCustomer.firstName} ${validatedCustomer.lastName}`.trim(),
+        customer_phone:         validatedCustomer.phone,
         idempotency_key:        idempotencyKey ?? null,
       })
       .select()

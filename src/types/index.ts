@@ -54,6 +54,8 @@ export interface Address {
   zip?: string
   zip_code?: string      // campo legacy (órdenes Wix históricas)
   country: string
+  phone?: string   // órdenes Wix migradas
+  email?: string   // órdenes Wix migradas
   is_default?: boolean
 }
 

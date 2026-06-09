@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminUser } from '@/lib/admin-auth'
 import { sendShippingNotification } from '@/lib/email/templates'
+import { resolveOrderEmail } from '@/lib/order-customer'
 import { resolveWixOrderNumber } from '@/lib/order-number'
 
 // PATCH /api/admin/orders/[id] — actualizar status o tracking_number
@@ -57,7 +58,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   // ── Disparar email de envío cuando pasa a "shipped" ───────────────────────
-  if (status === 'shipped' && order.customer_email) {
+  const customerEmail = resolveOrderEmail(order)
+  if (status === 'shipped' && customerEmail) {
     try {
       const addr = order.shipping_address as {
         street?: string; city?: string; state?: string; zip?: string; country?: string
@@ -66,10 +68,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const resolvedWix = await resolveWixOrderNumber(supabase, order.id, order.wix_order_number)
 
       await sendShippingNotification({
-        to:             order.customer_email,
+        to:             customerEmail,
         orderId:        order.id,
         wixOrderNumber: resolvedWix,
-        name:           order.customer_name ?? order.customer_email,
+        name:           order.customer_name ?? customerEmail,
         trackingNumber: order.tracking_number ?? undefined,
         shippingAddress: addr ? {
           street:  addr.street  ?? '',

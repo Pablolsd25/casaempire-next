@@ -2,11 +2,10 @@ import type { createAdminClient } from '@/lib/supabase/admin'
 import { logEmailDiagnostics } from '@/lib/email/diagnostics'
 import { isEmailConfigured } from '@/lib/email/send'
 import { sendOrderConfirmation } from '@/lib/email/templates'
+import { resolveOrderEmail } from '@/lib/order-customer'
 import { LEGAL } from '@/lib/site-legal'
 
 type Supabase = ReturnType<typeof createAdminClient>
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 type OrderEmailRow = {
   id: string
@@ -70,9 +69,9 @@ export async function sendCustomerOrderConfirmationIfNeeded(
   if (row.confirmation_email_sent_at) return true
   if (row.status !== 'paid') return false
 
-  const email = row.customer_email?.trim().toLowerCase() ?? ''
-  if (!email || !EMAIL_RE.test(email)) {
-    console.error('[email] Email de cliente inválido o vacío — orden', orderId, '|', email || '(vacío)')
+  const email = resolveOrderEmail(row)
+  if (!email) {
+    console.error('[email] Email de cliente inválido o vacío — orden', orderId)
     return false
   }
 
