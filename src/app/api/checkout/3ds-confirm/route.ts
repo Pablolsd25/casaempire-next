@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { fulfillPaidOrder } from '@/lib/checkout-fulfillment'
 import { getOpenPayError } from '@/lib/openpay-errors'
 import { openpayFetch } from '@/lib/openpay-server'
+import { recoverOrderFromOpenPayChargeId } from '@/lib/openpay-order-recovery'
 
 function splitCustomerName(full: string | null): { firstName: string; lastName: string } {
   const trimmed = (full ?? '').trim()
@@ -71,7 +72,28 @@ export async function GET(req: NextRequest) {
       .single()
 
     if (orderError || !order) {
-      return NextResponse.json({ error: 'Orden no encontrada.' }, { status: 404 })
+      const recovered = await recoverOrderFromOpenPayChargeId(supabase, chargeId)
+      if (!recovered.ok) {
+        return NextResponse.json({ error: 'Orden no encontrada.' }, { status: 404 })
+      }
+
+      const { data: recoveredOrder } = await supabase
+        .from('orders')
+        .select(
+          `id, wix_order_number, status, profile_id, subtotal, shipping_cost, discount, total, coupon_code,
+           customer_email, customer_name, customer_phone, shipping_address,
+           items:order_items(product_id, quantity, unit_price, product:products(name))`
+        )
+        .eq('id', recovered.orderId)
+        .single()
+
+      if (!recoveredOrder) {
+        return NextResponse.json({ error: 'Orden no encontrada.' }, { status: 404 })
+      }
+
+      return NextResponse.json(
+        orderResponse(recoveredOrder as OrderRow, recovered.status)
+      )
     }
 
     const typedOrder = order as OrderRow

@@ -15,6 +15,11 @@ import {
   validateClientAmount,
 } from '@/lib/checkout-validation'
 import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit'
+import {
+  cancelCheckoutOrder,
+  enrichShippingWithPhone,
+  insertCheckoutOrder,
+} from '@/lib/checkout-order'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/checkout
@@ -197,7 +202,44 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const customerWithPhone = validatedCustomer
+    const shippingWithPhone = enrichShippingWithPhone(
+      shippingAddress as Record<string, string>,
+      validatedCustomer.phone
+    )
+
+    const orderInsert = await insertCheckoutOrder(supabase, {
+      profile_id:             profileId,
+      status:                 'pending',
+      subtotal,
+      shipping_cost:          shippingCost,
+      discount,
+      coupon_code:            validCouponCode,
+      total,
+      shipping_address:       shippingWithPhone,
+      customer_email:         validatedCustomer.email,
+      customer_name:          `${validatedCustomer.firstName} ${validatedCustomer.lastName}`.trim(),
+      customer_phone:         validatedCustomer.phone,
+      idempotency_key:        idempotencyKey ?? null,
+    })
+
+    if (!orderInsert.ok) {
+      console.error('[checkout] Error creando orden antes del cargo:', orderInsert.error)
+      return NextResponse.json(
+        { error: 'Ocurrió un error al registrar tu orden. Intenta de nuevo.' },
+        { status: 500 }
+      )
+    }
+
+    const order = orderInsert.order
+
+    await supabase.from('order_items').insert(
+      validatedItems.map((i) => ({
+        order_id:   order.id,
+        product_id: i.productId,
+        quantity:   i.quantity,
+        unit_price: i.price,
+      }))
+    )
 
     const chargeBody = buildOpenPayChargeBody({
       token,
@@ -205,7 +247,7 @@ export async function POST(req: NextRequest) {
       deviceSessionId:   deviceSessionId.trim(),
       orderId:           idempotencyKey ?? undefined,
       redirectUrl,
-      customer:          customerWithPhone,
+      customer:          validatedCustomer,
     })
 
     console.log('[checkout] charge redirect_url:', redirectUrl, '| sandbox:', serverSandbox)
@@ -233,59 +275,30 @@ export async function POST(req: NextRequest) {
         '| status:',
         charge.status
       )
+      await cancelCheckoutOrder(supabase, order.id)
       return NextResponse.json({ error: getOpenPayError(charge) }, { status: 402 })
     }
 
     if (charge.status === 'failed') {
       console.error('[checkout] OpenPay charge status failed — error_code:', charge.error_code)
+      await cancelCheckoutOrder(supabase, order.id)
       return NextResponse.json({ error: getOpenPayError(charge) }, { status: 402 })
     }
+
+    await supabase
+      .from('orders')
+      .update({ openpay_transaction_id: charge.id })
+      .eq('id', order.id)
 
     const authUrl = charge.payment_method?.url as string | undefined
     if (charge.status === 'charge_pending') {
       if (!authUrl) {
+        await cancelCheckoutOrder(supabase, order.id)
         return NextResponse.json(
           { error: 'No se pudo iniciar la autenticación 3D Secure. Intenta de nuevo.' },
           { status: 402 }
         )
       }
-
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          profile_id:             profileId,
-          status:                 'pending',
-          subtotal,
-          shipping_cost:          shippingCost,
-          discount,
-          coupon_code:            validCouponCode,
-          total,
-          openpay_transaction_id: charge.id,
-          shipping_address:       shippingAddress,
-          customer_email:         validatedCustomer.email,
-          customer_name:          `${validatedCustomer.firstName} ${validatedCustomer.lastName}`.trim(),
-          customer_phone:         validatedCustomer.phone,
-          idempotency_key:        idempotencyKey ?? null,
-        })
-        .select()
-        .single()
-
-      if (orderError || !order) {
-        console.error('[checkout] Error guardando orden 3DS:', orderError)
-        return NextResponse.json(
-          { error: 'Ocurrió un error al registrar tu orden. Intenta de nuevo.' },
-          { status: 500 }
-        )
-      }
-
-      await supabase.from('order_items').insert(
-        validatedItems.map((i) => ({
-          order_id:   order.id,
-          product_id: i.productId,
-          quantity:   i.quantity,
-          unit_price: i.price,
-        }))
-      )
 
       return NextResponse.json({
         orderId:            order.id,
@@ -298,6 +311,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (charge.status !== 'completed' && charge.status !== 'in_progress') {
+      await cancelCheckoutOrder(supabase, order.id)
       return NextResponse.json(
         { error: 'El pago no fue aprobado. Intenta de nuevo o usa otra tarjeta.' },
         { status: 402 }
@@ -307,65 +321,14 @@ export async function POST(req: NextRequest) {
     const orderStatus: 'paid' | 'pending' =
       charge.status === 'completed' ? 'paid' : 'pending'
 
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        profile_id:             profileId,
-        status:                 orderStatus,
-        subtotal,
-        shipping_cost:          shippingCost,
-        discount,
-        coupon_code:            validCouponCode,
-        total,
-        openpay_transaction_id: charge.id,
-        shipping_address:       shippingAddress,
-        customer_email:         validatedCustomer.email,
-        customer_name:          `${validatedCustomer.firstName} ${validatedCustomer.lastName}`.trim(),
-        customer_phone:         validatedCustomer.phone,
-        idempotency_key:        idempotencyKey ?? null,
-      })
-      .select()
-      .single()
-
-    if (orderError || !order) {
-      console.error('[checkout] Error guardando orden:', orderError)
-
-      try {
-        const refundRes = await openpayFetch(`/charges/${charge.id}/refund`, {
-          method: 'POST',
-          body:   JSON.stringify({ description: 'Reembolso automático por error interno al registrar orden' }),
-        })
-        if (refundRes.ok) {
-          console.log('[checkout] Reembolso automático exitoso para cargo:', charge.id)
-        } else {
-          const rd = await refundRes.json()
-          console.error('[checkout] Fallo en reembolso automático:', rd)
-        }
-      } catch (refundErr) {
-        console.error('[checkout] Excepción en reembolso automático:', refundErr)
-      }
-
-      return NextResponse.json(
-        { error: 'Ocurrió un error al registrar tu orden. Tu cargo será reembolsado en 3–5 días hábiles. Escríbenos por WhatsApp para seguimiento.' },
-        { status: 500 }
-      )
-    }
-
-    await supabase.from('order_items').insert(
-      validatedItems.map((i) => ({
-        order_id:   order.id,
-        product_id: i.productId,
-        quantity:   i.quantity,
-        unit_price: i.price,
-      }))
-    )
+    await supabase.from('orders').update({ status: orderStatus }).eq('id', order.id)
 
     await fulfillPaidOrder(supabase, {
       orderId:         order.id,
       wixOrderNumber:  order.wix_order_number,
       profileId,
       items:           validatedItems,
-      customer:        customerWithPhone,
+      customer:        validatedCustomer,
       shippingAddress,
       subtotal,
       shippingCost,

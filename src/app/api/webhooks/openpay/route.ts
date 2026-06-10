@@ -7,6 +7,8 @@ import {
 } from '@/lib/openpay-webhook'
 import { openpayFetch } from '@/lib/openpay-server'
 import { sendCustomerOrderConfirmationIfNeeded } from '@/lib/order-confirmation-email'
+import { idempotencyKeyVariants } from '@/lib/idempotency-key'
+import { syncOrderWithOpenPayCharge } from '@/lib/openpay-order-recovery'
 
 async function fetchCharge(transactionId: string) {
   try {
@@ -32,12 +34,14 @@ async function findOrderIdByTransaction(
     if (data?.id) return data.id
   }
   if (merchantOrderId) {
-    const { data } = await supabase
-      .from('orders')
-      .select('id')
-      .eq('idempotency_key', merchantOrderId)
-      .maybeSingle()
-    if (data?.id) return data.id
+    for (const key of idempotencyKeyVariants(merchantOrderId)) {
+      const { data } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('idempotency_key', key)
+        .maybeSingle()
+      if (data?.id) return data.id
+    }
   }
   return null
 }
@@ -134,15 +138,30 @@ export async function POST(req: NextRequest) {
 
       const charge = await fetchCharge(transactionId)
       if (charge?.status === 'completed' || charge?.status === 'in_progress') {
-        const orderId = await findOrderIdByTransaction(supabase, transactionId, merchantOrderId)
-        if (orderId) {
+        let orderId = await findOrderIdByTransaction(supabase, transactionId, merchantOrderId)
+
+        if (!orderId) {
+          const recovered = await syncOrderWithOpenPayCharge(supabase, charge, {
+            fulfill: true,
+          })
+          orderId = recovered?.orderId ?? null
+        } else {
           const newStatus = charge.status === 'completed' ? 'paid' : 'pending'
+          const { data: existing } = await supabase
+            .from('orders')
+            .select('status')
+            .eq('id', orderId)
+            .single()
+
           await supabase
             .from('orders')
-            .update({ status: newStatus })
+            .update({
+              status:                 newStatus,
+              openpay_transaction_id: transactionId,
+            })
             .eq('id', orderId)
 
-          if (newStatus === 'paid') {
+          if (newStatus === 'paid' && existing?.status !== 'paid') {
             await sendCustomerOrderConfirmationIfNeeded(supabase, orderId)
           }
         }
