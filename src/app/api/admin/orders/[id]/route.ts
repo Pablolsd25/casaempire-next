@@ -4,8 +4,9 @@ import { getAdminUser } from '@/lib/admin-auth'
 import { sendShippingNotification } from '@/lib/email/templates'
 import { resolveOrderEmail } from '@/lib/order-customer'
 import { resolveWixOrderNumber } from '@/lib/order-number'
+import { normalizeShippingAddress } from '@/lib/shipping-address'
 
-// PATCH /api/admin/orders/[id] — actualizar status o tracking_number
+// PATCH /api/admin/orders/[id] — actualizar status, tracking, notas o dirección
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
@@ -14,7 +15,41 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const supabase = createAdminClient()
   const body = await req.json()
-  const { status, tracking_number, notes } = body
+  const { status, tracking_number, notes, shipping_address } = body
+
+  // ── Actualizar dirección de envío ─────────────────────────────────────────
+  if (shipping_address !== undefined && status === undefined) {
+    const normalized = normalizeShippingAddress(shipping_address)
+    if (!normalized.ok) {
+      return NextResponse.json({ error: normalized.error }, { status: 400 })
+    }
+
+    const { data: existing } = await supabase
+      .from('orders')
+      .select('shipping_address')
+      .eq('id', id)
+      .single()
+
+    const prev = (existing?.shipping_address ?? {}) as Record<string, string>
+    const merged: Record<string, string> = {
+      ...prev,
+      ...normalized.address,
+    }
+    if (prev.phone && !merged.phone) merged.phone = prev.phone
+    if (prev.email && !merged.email) merged.email = prev.email
+
+    const { data: order, error } = await supabase
+      .from('orders')
+      .update({ shipping_address: merged })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error || !order) {
+      return NextResponse.json({ error: error?.message ?? 'Error' }, { status: 400 })
+    }
+    return NextResponse.json(order)
+  }
 
   // ── Actualizar tracking_number (sin cambiar status) ───────────────────────
   if (tracking_number !== undefined && status === undefined && notes === undefined) {

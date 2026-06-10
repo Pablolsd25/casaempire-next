@@ -4,6 +4,7 @@ import Link from 'next/link'
 import DeleteOrderButton from './DeleteOrderButton'
 import OrderItemsExpander from './OrderItemsExpander'
 import { formatOrderNumber } from '@/lib/order-number'
+import { formatMexicoDate, formatMexicoDateTime } from '@/lib/mexico-datetime'
 
 export const metadata = { title: 'Pedidos | Admin' }
 
@@ -28,6 +29,8 @@ function fulfillmentBadge(status: string) {
       return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-accent/20 text-accent">Entregado</span>
     case 'shipped':
       return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-400">Enviado</span>
+    case 'paid':
+      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-500/15 text-yellow-400 border border-yellow-500/25">Por enviar</span>
     case 'cancelled':
       return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-500/20 text-red-400">Cancelado</span>
     default:
@@ -156,7 +159,7 @@ export default async function AdminOrdenesPage({
                 <div className="text-right shrink-0">
                   <p className="text-white font-semibold text-sm">${Number(order.total).toLocaleString('es-MX')} MXN</p>
                   <p className="text-zinc-500 text-xs mt-0.5">
-                    {new Date(order.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    {formatMexicoDate(order.created_at)}
                   </p>
                   <div className="flex justify-end mt-0.5">
                     <OrderItemsExpander items={items} />
@@ -214,13 +217,7 @@ export default async function AdminOrdenesPage({
 
                     {/* Fecha */}
                     <td className="px-4 py-3 text-zinc-400 text-xs whitespace-nowrap">
-                      {new Date(order.created_at).toLocaleString('es-MX', {
-                        day:    '2-digit',
-                        month:  'short',
-                        year:   'numeric',
-                        hour:   '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {formatMexicoDateTime(order.created_at)}
                     </td>
 
                     {/* Cliente */}

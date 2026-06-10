@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { formatOrderNumber } from "@/lib/order-number";
+import { formatMexicoDate } from "@/lib/mexico-datetime";
 
 export default async function AdminDashboard() {
   const auth = await createClient();
@@ -310,7 +311,7 @@ export default async function AdminDashboard() {
                     {order.customer_name ?? order.customer_email ?? "—"}
                   </p>
                   <p className="text-zinc-600 text-xs mt-0.5">
-                    {new Date(order.created_at).toLocaleDateString("es-MX")}
+                    {formatMexicoDate(order.created_at)}
                   </p>
                 </div>
                 <div className="ml-3 flex flex-col items-end gap-1.5">
@@ -372,11 +373,7 @@ export default async function AdminDashboard() {
                       </span>
                     </td>
                     <td className="px-5 py-3 text-zinc-500 text-xs">
-                      {new Date(order.created_at).toLocaleDateString("es-MX", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                      {formatMexicoDate(order.created_at)}
                     </td>
                   </tr>
                 ))}

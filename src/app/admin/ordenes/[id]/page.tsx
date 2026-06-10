@@ -6,8 +6,10 @@ import TrackingInput from './TrackingInput'
 import RefundButton from './RefundButton'
 import OrderNoteInput from './OrderNoteInput'
 import DownloadReceiptButton from './DownloadReceiptButton'
+import ShippingAddressEditor from './ShippingAddressEditor'
 import { formatOrderNumber } from '@/lib/order-number'
 import { formatOrderPhone, resolveOrderEmail } from '@/lib/order-customer'
+import { formatMexicoDateTime } from '@/lib/mexico-datetime'
 
 export const metadata = { title: 'Detalle de Orden | Admin' }
 
@@ -22,7 +24,7 @@ const PAY_BADGE: Record<string, { label: string; cls: string }> = {
 
 const FUL_BADGE: Record<string, { label: string; cls: string }> = {
   pending:   { label: 'No completado', cls: 'bg-zinc-700/60 text-zinc-300  border-zinc-600'         },
-  paid:      { label: 'No completado', cls: 'bg-zinc-700/60 text-zinc-300  border-zinc-600'         },
+  paid:      { label: 'Por enviar',    cls: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/25' },
   shipped:   { label: 'En camino',     cls: 'bg-blue-500/20 text-blue-400  border-blue-500/30'      },
   delivered: { label: 'Completado',    cls: 'bg-accent/20   text-accent    border-accent/30'        },
   cancelled: { label: 'Cancelado',     cls: 'bg-red-500/20  text-red-400   border-red-500/30'       },
@@ -89,20 +91,7 @@ export default async function OrdenDetallePage({
     ? `Pedido n.º ${order.wix_order_number}`
     : `Orden ${formatOrderNumber(order)}`
 
-  const dateStr = new Date(order.created_at).toLocaleDateString('es-MX', {
-    day: 'numeric', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
-
-  // Address helpers
-  const addrStreet = addr
-    ? [addr.street, addr.numExterior ? `No. ${addr.numExterior}` : '', addr.numInterior ? `Int. ${addr.numInterior}` : '']
-        .filter(Boolean).join(' ')
-    : null
-  const addrCity = addr
-    ? [addr.municipio ?? addr.city, addr.state, addr.zip ?? addr.zip_code, addr.country]
-        .filter(Boolean).join(', ')
-    : null
+  const dateStr = formatMexicoDateTime(order.created_at, { day: 'numeric' })
 
   return (
     <div className="space-y-6 pb-12">
@@ -345,28 +334,11 @@ export default async function OrdenDetallePage({
               <p className="text-zinc-600 text-xs mt-0.5">3-5 días hábiles</p>
             </div>
 
-            {/* Dirección de envío */}
-            {addr && (
-              <div className="px-4 py-4">
-                <p className="text-zinc-500 text-xs uppercase tracking-wide mb-2">Dirección de envío</p>
-                {order.customer_name && (
-                  <p className="text-white text-sm font-medium mb-0.5">{order.customer_name}</p>
-                )}
-                {addrStreet && <p className="text-zinc-300 text-sm">{addrStreet}</p>}
-                {addrCity   && <p className="text-zinc-300 text-sm">{addrCity}</p>}
-                {addr.referencias && (
-                  <p className="text-zinc-500 text-xs mt-1">Ref: {addr.referencias}</p>
-                )}
-              </div>
-            )}
-
-            {/* Colonia */}
-            {addr?.colonia && (
-              <div className="px-4 py-3">
-                <p className="text-zinc-500 text-xs uppercase tracking-wide mb-1">Colonia</p>
-                <p className="text-zinc-300 text-sm">{addr.colonia}</p>
-              </div>
-            )}
+            <ShippingAddressEditor
+              orderId={order.id}
+              initialAddress={addr}
+              customerName={order.customer_name}
+            />
 
             {/* Dirección de facturación */}
             <div className="px-4 py-3">

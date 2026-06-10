@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf'
 import { LEGAL } from '@/lib/site-legal'
 import { formatMexicanPhone } from '@/lib/checkout-validation'
+import { formatMexicoDateTime } from '@/lib/mexico-datetime'
 import { formatOrderNumber } from '@/lib/order-number'
 
 export type ReceiptOrderItem = {
@@ -124,7 +125,7 @@ export function buildOrderReceiptPdf(order: ReceiptOrder): ArrayBuffer {
   doc.text(orderLabel(order), 14, y)
   y += 6
   doc.text(
-    `Fecha: ${new Date(order.created_at).toLocaleString('es-MX')}`,
+    `Fecha: ${formatMexicoDateTime(order.created_at)}`,
     14,
     y
   )
@@ -236,7 +237,7 @@ export function buildOrderReceiptPdf(order: ReceiptOrder): ArrayBuffer {
   doc.text(LEGAL.paymentProcessor, 14, y, { maxWidth: 184 })
   y += 8
   doc.text(
-    `Generado el ${new Date().toLocaleString('es-MX')} · ${LEGAL.website}`,
+    `Generado el ${formatMexicoDateTime(new Date())} · ${LEGAL.website}`,
     14,
     y
   )

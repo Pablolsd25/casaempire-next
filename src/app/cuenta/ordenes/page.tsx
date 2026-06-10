@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { formatOrderNumber } from '@/lib/order-number'
+import { formatMexicoDate } from '@/lib/mexico-datetime'
 
 export const metadata: Metadata = { title: 'Mis pedidos — Empire Nutrition' }
 
@@ -94,7 +95,7 @@ export default async function CuentaOrdenesPage({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-zinc-400 text-xs mb-1">
-                      {new Date(order.created_at).toLocaleDateString('es-MX', {
+                      {formatMexicoDate(order.created_at, {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',
