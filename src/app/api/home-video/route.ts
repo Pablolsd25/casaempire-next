@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import {
   DEFAULT_HOME_VIDEO_480,
   DEFAULT_HOME_VIDEO_1080,
+  DEFAULT_HOME_VIDEO_POSTER,
   DEFAULT_HOME_SHOWCASE_VIDEO,
   getHomePageVideos,
 } from '@/lib/home-video'
@@ -17,6 +18,7 @@ export async function GET() {
     return NextResponse.json({
       video480: DEFAULT_HOME_VIDEO_480,
       video1080: DEFAULT_HOME_VIDEO_1080,
+      poster: DEFAULT_HOME_VIDEO_POSTER,
       showcaseVideo: DEFAULT_HOME_SHOWCASE_VIDEO,
     })
   }

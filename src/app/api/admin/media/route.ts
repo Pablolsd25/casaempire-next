@@ -5,7 +5,7 @@ import type { MediaItem } from '@/types'
 
 const BUCKET = 'images'
 // Carpetas conocidas a recorrer (1 nivel de profundidad cuando aplica)
-const FOLDERS = ['products', 'products/description', 'blog', 'videos', 'wix-library']
+const FOLDERS = ['products', 'products/description', 'blog', 'videos']
 const VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v', 'ogg', 'ogv']
 
 function kindOf(name: string): 'image' | 'video' {

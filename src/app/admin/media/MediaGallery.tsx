@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Upload, Loader2, Trash2, Copy, Check } from 'lucide-react'
 import type { MediaItem } from '@/types'
 import { uploadMediaFile } from '@/lib/utils/image-upload'
+import { AdminMediaVideo, AdminVideoPreviewModal } from '@/components/admin/AdminMediaVideo'
 
 type Filter = 'all' | 'image' | 'video'
 
@@ -20,6 +21,7 @@ export default function MediaGallery() {
   const [filter, setFilter]   = useState<Filter>('all')
   const [error, setError]     = useState('')
   const [copied, setCopied]   = useState<string | null>(null)
+  const [preview, setPreview] = useState<MediaItem | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const fetchMedia = useCallback(async () => {
@@ -118,7 +120,14 @@ export default function MediaGallery() {
               className="group relative bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
               <div className="aspect-square bg-zinc-800">
                 {item.kind === 'video' ? (
-                  <video src={item.url} className="w-full h-full object-cover" muted />
+                  <button
+                    type="button"
+                    onClick={() => setPreview(item)}
+                    className="w-full h-full cursor-pointer"
+                    title="Reproducir video"
+                  >
+                    <AdminMediaVideo url={item.url} />
+                  </button>
                 ) : (
                   <img src={item.url} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
                 )}
@@ -148,6 +157,12 @@ export default function MediaGallery() {
           ))}
         </div>
       )}
+
+      <AdminVideoPreviewModal
+        url={preview?.url ?? null}
+        name={preview?.name}
+        onClose={() => setPreview(null)}
+      />
     </div>
   )
 }

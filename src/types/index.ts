@@ -27,7 +27,26 @@ export interface Product {
   sort_order: number
   wix_id: string | null
   created_at: string
-  category?: Category
+  category?: Category | Pick<Category, 'id' | 'name' | 'slug'>
+}
+
+/** Campos mínimos para grillas/tarjetas — evita traer description HTML en listados */
+export type ProductListItem = Pick<
+  Product,
+  | 'id'
+  | 'name'
+  | 'slug'
+  | 'price'
+  | 'compare_at_price'
+  | 'manage_stock'
+  | 'stock'
+  | 'images'
+  | 'is_active'
+  | 'is_offer'
+  | 'sort_order'
+  | 'shipping_cost'
+> & {
+  category?: Pick<Category, 'id' | 'name' | 'slug'> | null
 }
 
 export interface Profile {
@@ -117,7 +136,7 @@ export interface ProductOption {
 }
 
 export interface CartItem {
-  product: Product
+  product: ProductListItem
   quantity: number
   /** Stable key: product.id + selected options (allows same product, diff variant) */
   cartKey: string

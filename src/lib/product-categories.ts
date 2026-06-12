@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { isOffersCategory } from '@/lib/offers'
-import { PRODUCT_WITH_CATEGORY } from '@/lib/supabase/product-selects'
+import { PRODUCT_LIST_SELECT } from '@/lib/supabase/product-selects'
 
 export type CategoryRef = { id: string; name?: string | null; slug?: string | null }
 
@@ -50,7 +50,7 @@ export async function fetchActiveProductsByCategory(
 
   const { data, error } = await supabase
     .from('products')
-    .select(PRODUCT_WITH_CATEGORY)
+    .select(PRODUCT_LIST_SELECT)
     .eq('is_active', true)
     .in('id', ids)
     .order('sort_order', { ascending: true })
@@ -82,7 +82,7 @@ export async function fetchOfferProducts(
 
   const { data, error } = await supabase
     .from('products')
-    .select(PRODUCT_WITH_CATEGORY)
+    .select(PRODUCT_LIST_SELECT)
     .eq('is_active', true)
     .in('id', [...ids])
     .order('sort_order', { ascending: true })

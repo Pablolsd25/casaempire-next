@@ -127,6 +127,7 @@ export default function ProductDetail({
                 controls
                 controlsList="nodownload"
                 playsInline
+                preload="metadata"
                 className="w-full h-full object-contain"
               />
             ) : current?.type === "image" ? (

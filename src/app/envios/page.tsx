@@ -4,7 +4,12 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Envíos Seguros' }
 
-const WIX = 'https://static.wixstatic.com/media'
+const proofImages = [
+  { src: '/envios/proof-1.jpg', alt: 'Pedido Empire Nutrition entregado' },
+  { src: '/envios/proof-2.jpg', alt: 'Paquete Empire Nutrition' },
+  { src: '/envios/proof-3.jpg', alt: 'Envío asegurado Empire Nutrition' },
+  { src: '/envios/proof-4.jpg', alt: 'Confirmación de entrega Empire Nutrition' },
+]
 
 const WHATSAPP_NUMBER = '525571527659'
 const WHATSAPP_DISPLAY = '55 7152 7659'
@@ -29,13 +34,6 @@ const carriers = [
     trackHref: 'https://www.fedex.com/es-mx/tracking.html',
   },
 ] as const
-
-const proofImages = [
-  { src: `${WIX}/5cd3e7_66524d5e7d004d2397225ebb700d3474~mv2.jpeg`, alt: 'Pedido Empire Nutrition entregado' },
-  { src: `${WIX}/5cd3e7_b13505cc72964d4893ed97fa2211ca30~mv2.jpeg`, alt: 'Paquete Empire Nutrition' },
-  { src: `${WIX}/5cd3e7_52c63226cc7c46aba01a91f09cc4ef7b~mv2.jpeg`, alt: 'Envío asegurado Empire Nutrition' },
-  { src: `${WIX}/5cd3e7_1bd8f4706e7d49a795175ad29d93874a~mv2.jpeg`, alt: 'Confirmación de entrega Empire Nutrition' },
-]
 
 const requiredFields = [
   { label: 'Nombre completo de quien recibe' },

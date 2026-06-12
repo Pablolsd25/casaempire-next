@@ -1,12 +1,15 @@
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import ProductGrid from "@/components/products/ProductGrid";
 import EmpireBanner from "@/components/ui/EmpireBanner";
 import PageHero from "@/components/layout/PageHero";
 import { fetchActiveProductsByCategory } from "@/lib/product-categories";
-import type { Product, Category } from "@/types";
+import type { ProductListItem, Category } from "@/types";
+import { asProductListItems } from "@/lib/supabase/product-selects";
 import type { Metadata } from "next";
+
+export const revalidate = 3600;
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -43,7 +46,7 @@ const DEFAULT_THEME = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const theme = CATEGORY_THEME[slug];
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("categories")
     .select("*")
@@ -55,7 +58,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CategoriaPage({ params }: Props) {
   const { slug } = await params;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data: category } = await supabase
     .from("categories")
@@ -71,7 +74,7 @@ export default async function CategoriaPage({ params }: Props) {
   );
 
   const cat = category as Category;
-  const prods = products as Product[];
+  const prods = asProductListItems(products);
 
   const theme = CATEGORY_THEME[slug] ?? {
     ...DEFAULT_THEME,

@@ -85,7 +85,7 @@ export default function VideoShowcase({ videoUrl }: Props) {
             muted
             loop
             playsInline
-            preload="auto"
+            preload="metadata"
           />
 
           {/* Indicador de audio */}

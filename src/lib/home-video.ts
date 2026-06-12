@@ -1,20 +1,19 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-export const DEFAULT_HOME_VIDEO_480 =
-  'https://video.wixstatic.com/video/d60565_a92a4ba089fb4a6d8e4893b90cef9183/480p/mp4/file.mp4'
+const SUPABASE_MEDIA = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/images/videos`
 
-export const DEFAULT_HOME_VIDEO_1080 =
-  'https://video.wixstatic.com/video/d60565_a92a4ba089fb4a6d8e4893b90cef9183/1080p/mp4/file.mp4'
+export const DEFAULT_HOME_VIDEO_480 = `${SUPABASE_MEDIA}/home-hero-480.mp4`
 
-export const DEFAULT_HOME_VIDEO_POSTER =
-  'https://static.wixstatic.com/media/d60565_a92a4ba089fb4a6d8e4893b90cef9183f001.jpg/v1/fill/w_1920,h_419,al_c,q_85/d60565_a92a4ba089fb4a6d8e4893b90cef9183f001.jpg'
+export const DEFAULT_HOME_VIDEO_1080 = `${SUPABASE_MEDIA}/home-hero-1080.mp4`
 
-export const DEFAULT_HOME_SHOWCASE_VIDEO =
-  'https://video.wixstatic.com/video/5cd3e7_a1bdec1e652044e2bae0b70b3d022289/720p/mp4/file.mp4'
+export const DEFAULT_HOME_VIDEO_POSTER = `${SUPABASE_MEDIA}/home-hero-poster.jpg`
+
+export const DEFAULT_HOME_SHOWCASE_VIDEO = `${SUPABASE_MEDIA}/video-web-1_1780812607384.mp4`
 
 export type HomeVideoSettings = {
   video480: string
   video1080: string
+  poster: string
 }
 
 export type HomePageVideos = HomeVideoSettings & {
@@ -24,18 +23,19 @@ export type HomePageVideos = HomeVideoSettings & {
 const SETTINGS_KEYS = [
   'home_video_480',
   'home_video_1080',
+  'home_video_poster',
   'home_showcase_video',
 ] as const
 
 export async function getHomeVideoSettings(
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
 ): Promise<HomeVideoSettings> {
   const all = await getHomePageVideos(supabase)
-  return { video480: all.video480, video1080: all.video1080 }
+  return { video480: all.video480, video1080: all.video1080, poster: all.poster }
 }
 
 export async function getHomePageVideos(
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
 ): Promise<HomePageVideos> {
   const { data } = await supabase
     .from('site_settings')
@@ -47,6 +47,7 @@ export async function getHomePageVideos(
   return {
     video480: map.home_video_480 || DEFAULT_HOME_VIDEO_480,
     video1080: map.home_video_1080 || DEFAULT_HOME_VIDEO_1080,
+    poster: map.home_video_poster || DEFAULT_HOME_VIDEO_POSTER,
     showcaseVideo: map.home_showcase_video || DEFAULT_HOME_SHOWCASE_VIDEO,
   }
 }

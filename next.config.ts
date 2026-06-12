@@ -32,8 +32,8 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://js.openpay.mx https://openpay.s3.amazonaws.com",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https://*.supabase.co https://static.wixstatic.com",
-              "media-src 'self' blob: https://*.supabase.co https://video.wixstatic.com",
+              "img-src 'self' data: blob: https://*.supabase.co",
+              "media-src 'self' blob: https://*.supabase.co",
               "font-src 'self' data:",
               "connect-src 'self' blob: https://*.supabase.co https://api.openpay.mx https://sandbox-api.openpay.mx",
               "worker-src 'self' blob:",
@@ -56,9 +56,10 @@ const nextConfig: NextConfig = {
         pathname: '/storage/v1/object/public/**',
       },
       {
-        // Wix Static CDN — imágenes migradas desde Wix
+        // Supabase Image Transformations — resize on CDN
         protocol: 'https',
-        hostname: 'static.wixstatic.com',
+        hostname: '*.supabase.co',
+        pathname: '/storage/v1/render/image/public/**',
       },
     ],
   },

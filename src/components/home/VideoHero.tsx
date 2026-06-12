@@ -26,7 +26,7 @@ export default function VideoHero({ video480, video1080, poster = DEFAULT_HOME_V
         autoPlay
         loop
         playsInline
-        preload="auto"
+        preload="metadata"
         poster={poster}
       >
         <source src={video1080} type="video/mp4" media="(min-width: 768px)" />

@@ -5,6 +5,8 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { uploadFileViaAdminSignedUrl } from '@/lib/utils/admin-storage-upload'
+import { compressImageForWeb } from '@/lib/utils/image-compress'
+import { compressVideoForWeb, validateHomeVideoInput } from '@/lib/utils/video-compress'
 
 const BUCKET = 'images'
 
@@ -22,11 +24,15 @@ export async function uploadProductImage(
 ): Promise<string> {
   validateImageFile(file)
 
-  const ext = file.name.split('.').pop() ?? 'jpg'
+  const prepared = await compressImageForWeb(file)
+  const ext =
+    prepared.type === 'image/jpeg'
+      ? 'jpg'
+      : (prepared.name.split('.').pop() ?? 'jpg')
   const fileName = `${productId}_${Date.now()}.${ext}`
   const filePath = `${folder}/${fileName}`
 
-  return uploadFileViaAdminSignedUrl(file, filePath, file.type || 'image/jpeg')
+  return uploadFileViaAdminSignedUrl(prepared, filePath, prepared.type || 'image/jpeg')
 }
 
 /**
@@ -84,12 +90,26 @@ export async function uploadMediaFile(file: File): Promise<string> {
 
   const isVideo = file.type.startsWith('video/')
   const folder = isVideo ? 'videos' : 'products'
-  const ext = file.name.split('.').pop() ?? (isVideo ? 'mp4' : 'jpg')
+
+  let prepared: File = file
+  if (isVideo) {
+    validateHomeVideoInput(file)
+    prepared = await compressVideoForWeb(file)
+  } else {
+    prepared = await compressImageForWeb(file)
+  }
+
+  const ext =
+    prepared.type === 'image/jpeg'
+      ? 'jpg'
+      : prepared.type === 'video/mp4'
+        ? 'mp4'
+        : (prepared.name.split('.').pop() ?? (isVideo ? 'mp4' : 'jpg'))
   const base = file.name.replace(/\.[^.]+$/, '').toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'media'
   const filePath = `${folder}/${base}_${Date.now()}.${ext}`
-  const contentType = file.type || (isVideo ? 'video/mp4' : 'image/jpeg')
+  const contentType = prepared.type || (isVideo ? 'video/mp4' : 'image/jpeg')
 
-  return uploadFileViaAdminSignedUrl(file, filePath, contentType)
+  return uploadFileViaAdminSignedUrl(prepared, filePath, contentType)
 }

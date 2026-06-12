@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, Upload, Loader2, Check, Link2 } from 'lucide-react'
 import type { MediaItem } from '@/types'
 import { uploadMediaFile } from '@/lib/utils/image-upload'
+import { AdminMediaVideo, AdminVideoPreviewModal } from '@/components/admin/AdminMediaVideo'
 
 interface Props {
   open: boolean
@@ -22,6 +23,7 @@ export default function MediaPicker({ open, onClose, onSelect, accept = 'image',
   const [uploading, setUploading] = useState(false)
   const [error, setError]       = useState('')
   const [externalUrl, setExternalUrl] = useState('')
+  const [preview, setPreview] = useState<MediaItem | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const fetchMedia = useCallback(async () => {
@@ -138,7 +140,16 @@ export default function MediaPicker({ open, onClose, onSelect, accept = 'image',
                     className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-colors bg-zinc-800
                       ${isSel ? 'border-accent' : 'border-transparent hover:border-zinc-600'}`}>
                     {item.kind === 'video' ? (
-                      <video src={item.url} className="w-full h-full object-cover" muted />
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); setPreview(item) }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setPreview(item) } }}
+                        className="absolute inset-0 z-[1] w-full h-full"
+                        title="Reproducir video"
+                      >
+                        <AdminMediaVideo url={item.url} />
+                      </span>
                     ) : (
                       <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
                     )}
@@ -189,6 +200,12 @@ export default function MediaPicker({ open, onClose, onSelect, accept = 'image',
           </div>
         </div>
       </div>
+
+      <AdminVideoPreviewModal
+        url={preview?.url ?? null}
+        name={preview?.name}
+        onClose={() => setPreview(null)}
+      />
     </div>
   )
 }

@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { buildIlikeOrFilter } from '@/lib/postgrest-sanitize'
-import { PRODUCT_WITH_CATEGORY } from '@/lib/supabase/product-selects'
+import { PRODUCT_LIST_SELECT, asProductListItems } from '@/lib/supabase/product-selects'
 import ProductGrid from '@/components/products/ProductGrid'
-import type { Product } from '@/types'
+import type { ProductListItem } from '@/types'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Búsqueda' }
@@ -18,17 +18,17 @@ export default async function BuscarPage({
   const q = params.q?.trim() ?? ''
   const supabase = await createClient()
 
-  let products: Product[] = []
+  let products: ProductListItem[] = []
 
   if (q.length >= 2) {
     const { data } = await supabase
       .from('products')
-      .select(PRODUCT_WITH_CATEGORY)
+      .select(PRODUCT_LIST_SELECT)
       .eq('is_active', true)
       .or(buildIlikeOrFilter(['name', 'description'], q))
       .order('created_at', { ascending: false })
 
-    products = (data ?? []) as Product[]
+    products = asProductListItems(data)
   }
 
   return (

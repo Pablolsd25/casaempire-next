@@ -29,7 +29,15 @@
     "consolidate:categories": "tsx scripts/consolidate-categories.ts",
     "backfill:order-items": "tsx scripts/backfill-order-items-wix.ts",
     "backfill:order-phones": "tsx scripts/backfill-order-phones.ts",
-    "recover:openpay-orders": "tsx scripts/recover-openpay-orders.ts"
+    "recover:openpay-orders": "tsx scripts/recover-openpay-orders.ts",
+    "audit:egress": "tsx scripts/audit-supabase-egress.ts",
+    "audit:wix-library": "tsx scripts/audit-wix-library.ts",
+    "compress:media": "tsx scripts/compress-storage-media.ts",
+    "compress:media:dry": "tsx scripts/compress-storage-media.ts -- --dry-run",
+    "migrate:videos": "tsx scripts/migrate-wix-videos.ts",
+    "migrate:videos:dry": "tsx scripts/migrate-wix-videos.ts -- --dry-run",
+    "migrate:wix-remnants": "tsx scripts/migrate-wix-remnants.ts",
+    "scan:wix": "tsx scripts/scan-wix-urls.ts"
   },
   "dependencies": {
     "@ffmpeg/core": "^0.12.10",
@@ -60,6 +68,7 @@
     "csv-parse": "^6.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "sharp": "^0.35.1",
     "tailwindcss": "^4",
     "tsx": "^4.22.3",
     "typescript": "^5",

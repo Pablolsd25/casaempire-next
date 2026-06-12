@@ -1,8 +1,8 @@
 import ProductCard from "./ProductCard";
-import type { Product } from "@/types";
+import type { ProductListItem } from "@/types";
 
 interface Props {
-  products: Product[];
+  products: ProductListItem[];
   title?: string;
   columns?: 3 | 4;
 }

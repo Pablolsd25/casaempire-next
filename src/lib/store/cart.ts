@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { CartItem, Product, AppliedCoupon } from '@/types'
+import type { CartItem, ProductListItem, AppliedCoupon } from '@/types'
 import { SHIPPING_COST } from '@/lib/constants'
 
 function makeCartKey(productId: string, selectedOptions?: Record<string, string>): string {
@@ -16,7 +16,7 @@ interface CartStore {
   isOpen: boolean
   coupon: AppliedCoupon | null
   shippingCost: number
-  addItem: (product: Product, quantity?: number, selectedOptions?: Record<string, string>) => void
+  addItem: (product: ProductListItem, quantity?: number, selectedOptions?: Record<string, string>) => void
   removeItem: (cartKey: string) => void
   updateQuantity: (cartKey: string, quantity: number) => void
   clearCart: () => void

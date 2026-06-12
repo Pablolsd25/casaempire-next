@@ -1,18 +1,20 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getHomePageVideos } from "@/lib/home-video";
-import { PRODUCT_WITH_CATEGORY } from "@/lib/supabase/product-selects";
+import { PRODUCT_LIST_SELECT, asProductListItems } from "@/lib/supabase/product-selects";
 import ProductGrid from "@/components/products/ProductGrid";
 import VideoHero from "@/components/home/VideoHero";
 import VideoShowcase from "@/components/home/VideoShowcase";
 import AboutSection from "@/components/home/AboutSection";
 import HomeReviewsSection from "@/components/home/HomeReviewsSection";
 import type { ReviewItem } from "@/components/reviews/ReviewCard";
-import type { Product } from "@/types";
+import type { ProductListItem } from "@/types";
+
+export const revalidate = 3600;
 
 export default async function HomePage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const adminSupabase = createAdminClient();
   const homeVideos = await getHomePageVideos(adminSupabase);
 
@@ -23,14 +25,14 @@ export default async function HomePage() {
     await Promise.all([
     supabase
       .from("products")
-      .select(PRODUCT_WITH_CATEGORY)
+      .select(PRODUCT_LIST_SELECT)
       .eq("is_active", true)
       .eq("category_id", WOMENS_CAT)
       .order("sort_order", { ascending: true })
       .limit(3),
     supabase
       .from("products")
-      .select(PRODUCT_WITH_CATEGORY)
+      .select(PRODUCT_LIST_SELECT)
       .eq("is_active", true)
       .eq("category_id", MENS_CAT)
       .order("sort_order", { ascending: true })
@@ -48,12 +50,16 @@ export default async function HomePage() {
     return { ...r, product: product ?? null };
   });
 
-  const products = [...(womenProds ?? []), ...(menProds ?? [])] as Product[];
+  const products = asProductListItems([...(womenProds ?? []), ...(menProds ?? [])]);
 
   return (
     <div>
       {/* Hero — Video intro Empire Nutrition */}
-      <VideoHero video480={homeVideos.video480} video1080={homeVideos.video1080} />
+      <VideoHero
+        video480={homeVideos.video480}
+        video1080={homeVideos.video1080}
+        poster={homeVideos.poster}
+      />
 
       {/* Video promocional — antes de categorías */}
       <VideoShowcase videoUrl={homeVideos.showcaseVideo} />

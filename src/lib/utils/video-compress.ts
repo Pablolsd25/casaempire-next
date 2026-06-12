@@ -2,7 +2,7 @@ import { FFmpeg } from '@ffmpeg/ffmpeg'
 import { fetchFile, toBlobURL } from '@ffmpeg/util'
 
 const MAX_INPUT_MB = 500
-const COMPRESS_ABOVE_MB = 18
+const COMPRESS_ABOVE_MB = 5
 const TARGET_MAX_MB = 45
 
 let ffmpegInstance: FFmpeg | null = null
@@ -71,10 +71,10 @@ export async function compressVideoForWeb(
   await ffmpeg.writeFile(inputName, await fetchFile(file))
   await ffmpeg.exec([
     '-i', inputName,
-    '-vf', "scale='min(1280,iw)':-2",
+    '-vf', "scale='min(720,iw)':-2",
     '-c:v', 'libx264',
     '-preset', 'fast',
-    '-crf', '28',
+    '-crf', '30',
     '-movflags', '+faststart',
     '-c:a', 'aac',
     '-b:a', '128k',

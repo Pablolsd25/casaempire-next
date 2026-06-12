@@ -4,10 +4,10 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useCartStore } from '@/lib/store/cart'
-import type { Product } from '@/types'
+import type { ProductListItem } from '@/types'
 
 interface Props {
-  product: Product
+  product: ProductListItem
 }
 
 export default function ProductCard({ product }: Props) {

@@ -1,11 +1,13 @@
-import { createClient } from '@/lib/supabase/server'
+import { createPublicClient } from '@/lib/supabase/server'
 import { getProductIdsInCategory } from '@/lib/product-categories'
-import { PRODUCT_WITH_CATEGORY, CATEGORY_WITH_PRODUCT_COUNTS, getCategoryProductCount } from '@/lib/supabase/product-selects'
+import { PRODUCT_LIST_SELECT, CATEGORY_WITH_PRODUCT_COUNTS, getCategoryProductCount, asProductListItems } from '@/lib/supabase/product-selects'
 import ProductGrid from '@/components/products/ProductGrid'
 import FilterSelect from '@/components/products/FilterSelect'
 import PageHero from '@/components/layout/PageHero'
-import type { Product, Category } from '@/types'
+import type { Category } from '@/types'
 import type { Metadata } from 'next'
+
+export const revalidate = 3600
 
 export const metadata: Metadata = { title: 'Tienda' }
 
@@ -17,7 +19,7 @@ export default async function TiendaPage({
   searchParams: Promise<SearchParams>
 }) {
   const params = await searchParams
-  const supabase = await createClient()
+  const supabase = createPublicClient()
 
   // Fetch categories with product count — only show those with products
   const { data: rawCats } = await supabase
@@ -30,7 +32,7 @@ export default async function TiendaPage({
 
   let query = supabase
     .from('products')
-    .select(PRODUCT_WITH_CATEGORY)
+    .select(PRODUCT_LIST_SELECT)
     .eq('is_active', true)
 
   if (params.categoria) {
@@ -47,7 +49,7 @@ export default async function TiendaPage({
   else query = query.order('created_at', { ascending: false })
 
   const { data: products } = await query
-  const prods = (products ?? []) as Product[]
+  const prods = asProductListItems(products)
 
   return (
     <div>
