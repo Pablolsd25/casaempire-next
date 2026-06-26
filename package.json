@@ -37,9 +37,13 @@
     "migrate:videos": "tsx scripts/migrate-wix-videos.ts",
     "migrate:videos:dry": "tsx scripts/migrate-wix-videos.ts -- --dry-run",
     "migrate:wix-remnants": "tsx scripts/migrate-wix-remnants.ts",
+    "migrate:r2": "tsx scripts/migrate-storage-to-r2.ts",
+    "migrate:r2:dry": "tsx scripts/migrate-storage-to-r2.ts -- --dry-run",
     "scan:wix": "tsx scripts/scan-wix-urls.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1075.0",
+    "@aws-sdk/s3-request-presigner": "^3.1075.0",
     "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",

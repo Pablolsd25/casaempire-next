@@ -8,7 +8,7 @@ export type HomeVideoUploadProgress = {
 
 /**
  * Sube un video de portada/showcase: comprime automáticamente si es pesado
- * para que cargue rápido en la web y quepa en Supabase Storage.
+ * para que cargue rápido en la web.
  */
 export async function uploadHomeVideoFile(
   file: File,

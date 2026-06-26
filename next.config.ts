@@ -1,6 +1,39 @@
 import type { NextConfig } from "next";
 import path from "path";
 
+const r2PublicUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_URL
+let r2Hostname: string | undefined
+try {
+  if (r2PublicUrl) r2Hostname = new URL(r2PublicUrl).hostname
+} catch {
+  r2Hostname = undefined
+}
+
+const imgSrc = ["'self'", "data:", "blob:", "https://*.supabase.co", "https://*.r2.dev"]
+const mediaSrc = ["'self'", "blob:", "https://*.supabase.co", "https://*.r2.dev"]
+const imagePatterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [
+  {
+    protocol: "https",
+    hostname: "*.supabase.co",
+    pathname: "/storage/v1/object/public/**",
+  },
+  {
+    protocol: "https",
+    hostname: "*.r2.dev",
+    pathname: "/**",
+  },
+]
+
+if (r2Hostname && !r2Hostname.endsWith('.r2.dev')) {
+  imgSrc.push(`https://${r2Hostname}`)
+  mediaSrc.push(`https://${r2Hostname}`)
+  imagePatterns.push({
+    protocol: "https",
+    hostname: r2Hostname,
+    pathname: "/**",
+  })
+}
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
@@ -32,8 +65,8 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://js.openpay.mx https://openpay.s3.amazonaws.com",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https://*.supabase.co",
-              "media-src 'self' blob: https://*.supabase.co",
+              `img-src ${imgSrc.join(" ")}`,
+              `media-src ${mediaSrc.join(" ")}`,
               "font-src 'self' data:",
               "connect-src 'self' blob: https://*.supabase.co https://api.openpay.mx https://sandbox-api.openpay.mx",
               "worker-src 'self' blob:",
@@ -48,20 +81,7 @@ const nextConfig: NextConfig = {
     ]
   },
   images: {
-    remotePatterns: [
-      {
-        // Supabase Storage — imágenes de productos y blog
-        protocol: 'https',
-        hostname: '*.supabase.co',
-        pathname: '/storage/v1/object/public/**',
-      },
-      {
-        // Supabase Image Transformations — resize on CDN
-        protocol: 'https',
-        hostname: '*.supabase.co',
-        pathname: '/storage/v1/render/image/public/**',
-      },
-    ],
+    remotePatterns: imagePatterns,
   },
 };
 

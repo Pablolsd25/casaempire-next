@@ -1,17 +1,14 @@
 /**
- * Utilidades para gestionar imágenes de productos en Supabase Storage
- * Bucket: 'images'  (el mismo que usa casaempire para todas las imágenes)
+ * Utilidades para subir/borrar media en Cloudflare R2.
  */
 
-import { createClient } from '@/lib/supabase/client'
 import { uploadFileViaAdminSignedUrl } from '@/lib/utils/admin-storage-upload'
+import { isManagedStorageUrl, storagePathFromUrl } from '@/lib/utils/storage-url'
 import { compressImageForWeb } from '@/lib/utils/image-compress'
 import { compressVideoForWeb, validateHomeVideoInput } from '@/lib/utils/video-compress'
 
-const BUCKET = 'images'
-
 /**
- * Sube una imagen de producto al bucket de Supabase Storage.
+ * Sube una imagen de producto a R2.
  * @param file - Archivo a subir
  * @param productId - ID o slug del producto (para el nombre del archivo)
  * @param folder - Subcarpeta dentro del bucket (default: 'products')
@@ -35,19 +32,21 @@ export async function uploadProductImage(
   return uploadFileViaAdminSignedUrl(prepared, filePath, prepared.type || 'image/jpeg')
 }
 
-/**
- * Elimina una imagen del bucket si pertenece a Supabase Storage.
- */
+/** Elimina un archivo de R2 vía API admin (credenciales solo en servidor). */
 export async function deleteProductImage(imageUrl: string): Promise<void> {
-  if (!imageUrl || !imageUrl.includes('supabase.co/storage')) return
+  if (!isManagedStorageUrl(imageUrl)) return
+  const filePath = storagePathFromUrl(imageUrl)
+  if (!filePath) return
 
-  const supabase = createClient()
-  const parts = imageUrl.split(`/storage/v1/object/public/${BUCKET}/`)
-  if (parts.length < 2) return
-
-  const filePath = parts[1].split('?')[0] // quitar query params si los hay
-  const { error } = await supabase.storage.from(BUCKET).remove([filePath])
-  if (error) console.warn('No se pudo eliminar la imagen:', error.message)
+  const res = await fetch('/api/admin/media', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: filePath }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    console.warn('No se pudo eliminar la imagen:', data.error ?? res.status)
+  }
 }
 
 /**

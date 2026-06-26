@@ -1,14 +1,19 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-const SUPABASE_MEDIA = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/images/videos`
+function mediaVideosBase(): string {
+  const r2 = process.env.NEXT_PUBLIC_R2_PUBLIC_URL?.replace(/\/$/, '')
+  if (r2) return `${r2}/videos`
+  // ponytail: fallback hasta migrar URLs en DB y desplegar con R2_PUBLIC_URL
+  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/images/videos`
+}
 
-export const DEFAULT_HOME_VIDEO_480 = `${SUPABASE_MEDIA}/home-hero-480.mp4`
+export const DEFAULT_HOME_VIDEO_480 = `${mediaVideosBase()}/home-hero-480.mp4`
 
-export const DEFAULT_HOME_VIDEO_1080 = `${SUPABASE_MEDIA}/home-hero-1080.mp4`
+export const DEFAULT_HOME_VIDEO_1080 = `${mediaVideosBase()}/home-hero-1080.mp4`
 
-export const DEFAULT_HOME_VIDEO_POSTER = `${SUPABASE_MEDIA}/home-hero-poster.jpg`
+export const DEFAULT_HOME_VIDEO_POSTER = `${mediaVideosBase()}/home-hero-poster.jpg`
 
-export const DEFAULT_HOME_SHOWCASE_VIDEO = `${SUPABASE_MEDIA}/video-web-1_1780812607384.mp4`
+export const DEFAULT_HOME_SHOWCASE_VIDEO = `${mediaVideosBase()}/video-web-1_1780812607384.mp4`
 
 export type HomeVideoSettings = {
   video480: string

@@ -1,51 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkAdminAccess } from '@/lib/admin-auth'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { R2_MEDIA_FOLDERS, r2Delete, r2ListFolder } from '@/lib/r2'
 import type { MediaItem } from '@/types'
 
-const BUCKET = 'images'
-// Carpetas conocidas a recorrer (1 nivel de profundidad cuando aplica)
-const FOLDERS = ['products', 'products/description', 'blog', 'videos']
-const VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v', 'ogg', 'ogv']
+const FOLDERS = R2_MEDIA_FOLDERS.filter((f) =>
+  ['products', 'products/description', 'blog', 'videos'].includes(f),
+)
 
-function kindOf(name: string): 'image' | 'video' {
-  const ext = name.split('.').pop()?.toLowerCase() ?? ''
-  return VIDEO_EXT.includes(ext) ? 'video' : 'image'
-}
-
-// GET /api/admin/media — lista todos los archivos del bucket en las carpetas conocidas
+// GET /api/admin/media — lista archivos en R2
 export async function GET() {
   const denied = await checkAdminAccess()
   if (denied) return denied
 
-  const supabase = createAdminClient()
-  const items: MediaItem[] = []
-
-  for (const folder of FOLDERS) {
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .list(folder, { limit: 1000, sortBy: { column: 'created_at', order: 'desc' } })
-    if (error || !data) continue
-
-    for (const f of data) {
-      // Las "carpetas" aparecen sin id/metadata; las omitimos
-      if (!f.id) continue
-      const path = `${folder}/${f.name}`
-      const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path)
-      items.push({
-        path,
-        name: f.name,
-        folder,
-        url: pub.publicUrl,
-        kind: kindOf(f.name),
-        size: (f.metadata?.size as number) ?? null,
-        created_at: f.created_at ?? null,
-      })
+  try {
+    const items: MediaItem[] = []
+    for (const folder of FOLDERS) {
+      const files = await r2ListFolder(folder)
+      for (const f of files) {
+        items.push({
+          path: f.path,
+          name: f.name,
+          folder: f.folder,
+          url: f.url,
+          kind: f.kind,
+          size: f.size,
+          created_at: f.lastModified,
+        })
+      }
     }
-  }
 
-  items.sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
-  return NextResponse.json(items)
+    items.sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+    return NextResponse.json(items)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Error listando media.'
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }
 
 // DELETE /api/admin/media — borra un archivo por path  { path }
@@ -61,8 +50,11 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Ruta no permitida.' }, { status: 400 })
   }
 
-  const supabase = createAdminClient()
-  const { error } = await supabase.storage.from(BUCKET).remove([path])
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ ok: true })
+  try {
+    await r2Delete(path)
+    return NextResponse.json({ ok: true })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Error al borrar.'
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }

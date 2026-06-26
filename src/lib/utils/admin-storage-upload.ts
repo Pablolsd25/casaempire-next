@@ -1,7 +1,4 @@
-/**
- * Sube un archivo al bucket de Supabase usando una URL firmada del admin.
- * Evita el error de RLS al subir desde el navegador.
- */
+/** Sube un archivo a R2 usando presigned URL del admin. */
 export async function uploadFileViaAdminSignedUrl(
   file: File | Blob,
   path: string,
